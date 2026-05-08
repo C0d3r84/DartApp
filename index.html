@@ -1,7 +1,13 @@
+# Responsive Dartboard Score Calculator
+
+Replace your current `index.html` with this fully responsive version.
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dartboard Score Calculator</title>
 
   <!-- React -->
@@ -10,14 +16,125 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #f3f4f6;
+      overflow-x: hidden;
     }
 
     button:hover {
       opacity: 0.9;
+    }
+
+    .app {
+      min-height: 100vh;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .board-card {
+      width: 100%;
+      max-width: 900px;
+      background: white;
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .board-title {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .board-wrapper {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .dartboard {
+      width: min(92vw, 700px);
+      height: min(92vw, 700px);
+      max-width: 100%;
+      object-fit: contain;
+      border-radius: 50%;
+      cursor: crosshair;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    .last-hit {
+      text-align: center;
+      margin-top: 20px;
+      margin-bottom: 0;
+    }
+
+    .score-panel {
+      width: 100%;
+      max-width: 900px;
+      margin-top: 20px;
+      background: white;
+      padding: 20px;
+      border-radius: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .score-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .reset-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 12px;
+      background: #ef4444;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .throw-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .throw-card {
+      background: #f3f4f6;
+      padding: 14px;
+      border-radius: 14px;
+    }
+
+    @media (max-width: 600px) {
+      .board-card,
+      .score-panel {
+        padding: 16px;
+        border-radius: 18px;
+      }
+
+      .board-title {
+        font-size: 28px;
+      }
+
+      .last-hit {
+        font-size: 22px;
+      }
     }
   </style>
 </head>
@@ -43,26 +160,21 @@
         "Click the dartboard to score"
       );
 
-      const boardSize = 320;
+      // Responsive board size
+      const boardSize = Math.min(window.innerWidth * 0.92, 700);
       const center = boardSize / 2;
 
-      // Calibrated specifically for the Wikimedia dartboard image
+      // Radii scaled relative to board image
+      const scale = boardSize / 320;
+
       const radii = {
-
-        // Bulls
-        bullInner: 4,
-        bullOuter: 21,
-
-        // Triple ring
-        tripleInner: 68,
-        tripleOuter: 75,
-
-        // Double ring
-        doubleInner: 114,
-        doubleOuter: 122,
-
-        // Board edge
-        outer: 122
+        bullInner: 4 * scale,
+        bullOuter: 21 * scale,
+        tripleInner: 68 * scale,
+        tripleOuter: 75 * scale,
+        doubleInner: 114 * scale,
+        doubleOuter: 122 * scale,
+        outer: 122 * scale
       };
 
       const totalScore = throws.reduce(
@@ -75,7 +187,7 @@
         const rect =
           e.currentTarget.getBoundingClientRect();
 
-        // Mouse position inside image
+        // Mouse/touch position inside image
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
@@ -95,8 +207,6 @@
         }
 
         // Angle calculation
-        // 0° at top
-        // clockwise direction
         let angle =
           Math.atan2(dx, dy) *
           (180 / Math.PI);
@@ -105,11 +215,9 @@
           angle += 360;
         }
 
-        // Shift by half a segment (9°)
-        // so wedges align perfectly
+        // Shift by half segment
         angle = (angle + 9) % 360;
 
-        // 20 segments
         const segmentIndex =
           Math.floor(angle / 18);
 
@@ -179,110 +287,72 @@
       };
 
       return (
-        <div
-          style={{
-            minHeight: "100vh",
-            padding: "20px",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "flex-start",
-            gap: "30px",
-            flexWrap: "wrap"
-          }}
-        >
+        <div className="app">
 
           {/* Dartboard */}
-          <div
-            style={{
-              background: "white",
-              padding: "20px",
-              borderRadius: "20px",
-              boxShadow:
-                "0 4px 20px rgba(0,0,0,0.1)"
-            }}
-          >
+          <div className="board-card">
 
-            <h1>
+            <h1 className="board-title">
               Dartboard Score Calculator
             </h1>
 
-            <img
-              onClick={handleBoardClick}
-              src="https://upload.wikimedia.org/wikipedia/commons/0/06/Dart_board.png"
-              alt="dartboard"
-              style={{
-                width: boardSize,
-                height: boardSize,
-                borderRadius: "50%",
-                cursor: "crosshair",
-                userSelect: "none",
-                objectFit: "contain"
-              }}
-            />
+            <div className="board-wrapper">
+              <img
+                onClick={handleBoardClick}
+                src="https://upload.wikimedia.org/wikipedia/commons/0/06/Dart_board.png"
+                alt="dartboard"
+                className="dartboard"
+              />
+            </div>
 
-            <h2>{lastHit}</h2>
+            <h2 className="last-hit">
+              {lastHit}
+            </h2>
 
           </div>
 
-          {/* Score Panel */}
-          <div
-            style={{
-              width: "300px",
-              background: "white",
-              padding: "20px",
-              borderRadius: "20px",
-              boxShadow:
-                "0 4px 20px rgba(0,0,0,0.1)"
-            }}
-          >
+          {/* Score Panel Underneath */}
+          <div className="score-panel">
 
-            <h2>
-              Total Score: {totalScore}
-            </h2>
+            <div className="score-header">
+              <h2>
+                Total Score: {totalScore}
+              </h2>
 
-            <button
-              onClick={() => {
-                setThrows([]);
-                setLastHit(
-                  "Click the dartboard to score"
-                );
-              }}
-              style={{
-                padding: "10px 20px",
-                border: "none",
-                borderRadius: "10px",
-                background: "#ef4444",
-                color: "white",
-                cursor: "pointer",
-                marginBottom: "20px"
-              }}
-            >
-              Reset
-            </button>
+              <button
+                onClick={() => {
+                  setThrows([]);
+                  setLastHit(
+                    "Click the dartboard to score"
+                  );
+                }}
+                className="reset-btn"
+              >
+                Reset
+              </button>
+            </div>
 
             {throws.length === 0 && (
               <p>No throws yet.</p>
             )}
 
-            {throws.map((t) => (
-              <div
-                key={t.timestamp}
-                style={{
-                  background: "#f3f4f6",
-                  padding: "10px",
-                  borderRadius: "10px",
-                  marginBottom: "10px"
-                }}
-              >
-                <strong>{t.label}</strong>
+            <div className="throw-list">
+              {throws.map((t) => (
+                <div
+                  key={t.timestamp}
+                  className="throw-card"
+                >
+                  <strong>{t.label}</strong>
 
-                <div>
-                  Score: {t.score}
+                  <div>
+                    Score: {t.score}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
           </div>
+
         </div>
       );
     }
@@ -298,3 +368,14 @@
   </script>
 </body>
 </html>
+```
+
+Then commit and push again:
+
+```bash
+git add .
+git commit -m "Responsive layout update"
+git push
+```
+
+GitHub Pages will automatically update the live site in about 1–2 minutes.
