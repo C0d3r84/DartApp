@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Dartboard Score Calculator</title>
+
+  <!-- React -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    function DartboardScoreCalculator() {
+
+      // Standard dartboard order clockwise from top
+      const numbers = [
+        20, 1, 18, 4, 13,
+        6, 10, 15, 2, 17,
+        3, 19, 7, 16, 8,
+        11, 14, 9, 12, 5
+      ];
+
+      const [throws, setThrows] = useState([]);
+      const [lastHit, setLastHit] = useState(
+        "Click the dartboard to score"
+      );
+
+      const boardSize = 320;
+      const center = boardSize / 2;
+
+      // Calibrated specifically for the Wikimedia dartboard image
+      const radii = {
+
+        // Bulls
+        bullInner: 4,
+        bullOuter: 21,
+
+        // Triple ring
+        tripleInner: 68,
+        tripleOuter: 75,
+
+        // Double ring
+        doubleInner: 114,
+        doubleOuter: 122,
+
+        // Board edge
+        outer: 122
+      };
+
+      const totalScore = throws.reduce(
+        (sum, t) => sum + t.score,
+        0
+      );
+
+      const handleBoardClick = (e) => {
+
+        const rect =
+          e.currentTarget.getBoundingClientRect();
+
+        // Mouse position inside image
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Coordinates relative to center
+        const dx = x - center;
+        const dy = center - y;
+
+        // Distance from center
+        const distance = Math.sqrt(
+          dx * dx + dy * dy
+        );
+
+        // Outside board
+        if (distance > radii.outer) {
+          setLastHit("Missed board");
+          return;
+        }
+
+        // Angle calculation
+        // 0° at top
+        // clockwise direction
+        let angle =
+          Math.atan2(dx, dy) *
+          (180 / Math.PI);
+
+        if (angle < 0) {
+          angle += 360;
+        }
+
+        // Shift by half a segment (9°)
+        // so wedges align perfectly
+        angle = (angle + 9) % 360;
+
+        // 20 segments
+        const segmentIndex =
+          Math.floor(angle / 18);
+
+        const baseValue =
+          numbers[segmentIndex];
+
+        let multiplier = 1;
+        let score = baseValue;
+        let label = `${baseValue}`;
+
+        // Bulls
+        if (distance <= radii.bullInner) {
+
+          score = 50;
+          label = "Bullseye (50)";
+
+        } else if (
+          distance <= radii.bullOuter
+        ) {
+
+          score = 25;
+          label = "Outer Bull (25)";
+
+        } else {
+
+          // Triple ring
+          if (
+            distance >= radii.tripleInner &&
+            distance <= radii.tripleOuter
+          ) {
+            multiplier = 3;
+          }
+
+          // Double ring
+          if (
+            distance >= radii.doubleInner &&
+            distance <= radii.doubleOuter
+          ) {
+            multiplier = 2;
+          }
+
+          score = baseValue * multiplier;
+
+          if (multiplier === 2) {
+            label =
+              `Double ${baseValue} (${score})`;
+          }
+
+          if (multiplier === 3) {
+            label =
+              `Triple ${baseValue} (${score})`;
+          }
+        }
+
+        const throwData = {
+          score,
+          label,
+          timestamp: Date.now()
+        };
+
+        // Keep latest 10 throws
+        setThrows(prev =>
+          [throwData, ...prev].slice(0, 10)
+        );
+
+        setLastHit(label);
+      };
+
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            padding: "20px",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-start",
+            gap: "30px",
+            flexWrap: "wrap"
+          }}
+        >
+
+          {/* Dartboard */}
+          <div
+            style={{
+              background: "white",
+              padding: "20px",
+              borderRadius: "20px",
+              boxShadow:
+                "0 4px 20px rgba(0,0,0,0.1)"
+            }}
+          >
+
+            <h1>
+              Dartboard Score Calculator
+            </h1>
+
+            <img
+              onClick={handleBoardClick}
+              src="https://upload.wikimedia.org/wikipedia/commons/0/06/Dart_board.png"
+              alt="dartboard"
+              style={{
+                width: boardSize,
+                height: boardSize,
+                borderRadius: "50%",
+                cursor: "crosshair",
+                userSelect: "none",
+                objectFit: "contain"
+              }}
+            />
+
+            <h2>{lastHit}</h2>
+
+          </div>
+
+          {/* Score Panel */}
+          <div
+            style={{
+              width: "300px",
+              background: "white",
+              padding: "20px",
+              borderRadius: "20px",
+              boxShadow:
+                "0 4px 20px rgba(0,0,0,0.1)"
+            }}
+          >
+
+            <h2>
+              Total Score: {totalScore}
+            </h2>
+
+            <button
+              onClick={() => {
+                setThrows([]);
+                setLastHit(
+                  "Click the dartboard to score"
+                );
+              }}
+              style={{
+                padding: "10px 20px",
+                border: "none",
+                borderRadius: "10px",
+                background: "#ef4444",
+                color: "white",
+                cursor: "pointer",
+                marginBottom: "20px"
+              }}
+            >
+              Reset
+            </button>
+
+            {throws.length === 0 && (
+              <p>No throws yet.</p>
+            )}
+
+            {throws.map((t) => (
+              <div
+                key={t.timestamp}
+                style={{
+                  background: "#f3f4f6",
+                  padding: "10px",
+                  borderRadius: "10px",
+                  marginBottom: "10px"
+                }}
+              >
+                <strong>{t.label}</strong>
+
+                <div>
+                  Score: {t.score}
+                </div>
+              </div>
+            ))}
+
+          </div>
+        </div>
+      );
+    }
+
+    const root =
+      ReactDOM.createRoot(
+        document.getElementById("root")
+      );
+
+    root.render(
+      <DartboardScoreCalculator />
+    );
+  </script>
+</body>
+</html>
