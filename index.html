@@ -1,9 +1,11 @@
-
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
   <title>Dartboard Score Calculator</title>
 
   <!-- React -->
@@ -68,6 +70,7 @@
       cursor: crosshair;
       user-select: none;
       touch-action: manipulation;
+      -webkit-user-drag: none;
     }
 
     .last-hit {
@@ -107,7 +110,8 @@
 
     .throw-list {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns:
+        repeat(auto-fit, minmax(220px, 1fr));
       gap: 12px;
     }
 
@@ -156,23 +160,6 @@
         "Click the dartboard to score"
       );
 
-      // Responsive board size
-      const boardSize = Math.min(window.innerWidth * 0.92, 700);
-      const center = boardSize / 2;
-
-      // Radii scaled relative to board image
-      const scale = boardSize / 563;
-
-      const radii = {
-        bullInner: 8 * scale,
-        bullOuter: 21 * scale,
-        tripleInner: 121 * scale,
-        tripleOuter: 134 * scale,
-        doubleInner: 201 * scale,
-        doubleOuter: 214 * scale,
-        outer: 281.5 * scale
-      };
-
       const totalScore = throws.reduce(
         (sum, t) => sum + t.score,
         0
@@ -183,7 +170,28 @@
         const rect =
           e.currentTarget.getBoundingClientRect();
 
-        // Mouse/touch position inside image
+        // ACTUAL rendered board size
+        const boardSize = rect.width;
+
+        // Center point
+        const center = boardSize / 2;
+
+        // Scale based on actual image size
+        // 563 = original board image size
+        const scale = boardSize / 563;
+
+        // Dynamic radii
+        const radii = {
+          bullInner: 8 * scale,
+          bullOuter: 21 * scale,
+          tripleInner: 121 * scale,
+          tripleOuter: 134 * scale,
+          doubleInner: 201 * scale,
+          doubleOuter: 214 * scale,
+          outer: 281.5 * scale
+        };
+
+        // Pointer position inside image
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
@@ -224,7 +232,7 @@
         let score = baseValue;
         let label = `${baseValue}`;
 
-        // Bulls
+        // Bullseye checks
         if (distance <= radii.bullInner) {
 
           score = 50;
@@ -298,6 +306,7 @@
                 src="pngegg.png"
                 alt="dartboard"
                 className="dartboard"
+                draggable="false"
               />
             </div>
 
@@ -307,10 +316,11 @@
 
           </div>
 
-          {/* Score Panel Underneath */}
+          {/* Score Panel */}
           <div className="score-panel">
 
             <div className="score-header">
+
               <h2>
                 Total Score: {totalScore}
               </h2>
@@ -326,6 +336,7 @@
               >
                 Reset
               </button>
+
             </div>
 
             {throws.length === 0 && (
@@ -333,6 +344,7 @@
             )}
 
             <div className="throw-list">
+
               {throws.map((t) => (
                 <div
                   key={t.timestamp}
@@ -345,6 +357,7 @@
                   </div>
                 </div>
               ))}
+
             </div>
 
           </div>
@@ -364,4 +377,3 @@
   </script>
 </body>
 </html>
-
