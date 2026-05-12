@@ -1,11 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+
+  <!-- IMPORTANT -->
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0"
+    content="
+      width=device-width,
+      initial-scale=1,
+      maximum-scale=1,
+      user-scalable=no
+    "
   />
+
   <title>Dartboard Score Calculator</title>
 
   <!-- React -->
@@ -16,6 +24,7 @@
   <style>
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
@@ -23,6 +32,7 @@
       font-family: Arial, sans-serif;
       background: #f3f4f6;
       overflow-x: hidden;
+      touch-action: manipulation;
     }
 
     button:hover {
@@ -44,6 +54,7 @@
       border-radius: 24px;
       padding: 20px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -62,15 +73,24 @@
     }
 
     .dartboard {
+
       width: min(92vw, 700px);
       height: min(92vw, 700px);
+
       max-width: 100%;
+
       object-fit: contain;
+
       border-radius: 50%;
+
       cursor: crosshair;
+
       user-select: none;
-      touch-action: manipulation;
+
+      -webkit-user-select: none;
       -webkit-user-drag: none;
+
+      touch-action: none;
     }
 
     .last-hit {
@@ -83,9 +103,13 @@
       width: 100%;
       max-width: 900px;
       margin-top: 20px;
+
       background: white;
+
       padding: 20px;
+
       border-radius: 24px;
+
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
 
@@ -110,8 +134,10 @@
 
     .throw-list {
       display: grid;
+
       grid-template-columns:
         repeat(auto-fit, minmax(220px, 1fr));
+
       gap: 12px;
     }
 
@@ -122,6 +148,7 @@
     }
 
     @media (max-width: 600px) {
+
       .board-card,
       .score-panel {
         padding: 16px;
@@ -140,14 +167,16 @@
 </head>
 
 <body>
+
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState } = React;
+
+    const { useState, useRef } = React;
 
     function DartboardScoreCalculator() {
 
-      // Standard dartboard order clockwise from top
+      // Dartboard numbering clockwise from top
       const numbers = [
         20, 1, 18, 4, 13,
         6, 10, 15, 2, 17,
@@ -156,47 +185,83 @@
       ];
 
       const [throws, setThrows] = useState([]);
+
       const [lastHit, setLastHit] = useState(
-        "Click the dartboard to score"
+        "Tap the dartboard to score"
       );
+
+      const imgRef = useRef(null);
 
       const totalScore = throws.reduce(
         (sum, t) => sum + t.score,
         0
       );
 
-      const handleBoardClick = (e) => {
+      const handleBoardTouch = (event) => {
+
+        event.preventDefault();
+
+        const img = imgRef.current;
+
+        if (!img) return;
 
         const rect =
-          e.currentTarget.getBoundingClientRect();
+          img.getBoundingClientRect();
 
-        // ACTUAL rendered board size
-        const boardSize = rect.width;
+        // Touch OR mouse support
+        const point =
+          event.touches?.[0] ||
+          event.changedTouches?.[0] ||
+          event;
 
-        // Center point
-        const center = boardSize / 2;
+        // Position inside DISPLAYED image
+        const displayX =
+          point.clientX - rect.left;
 
-        // Scale based on actual image size
-        // 563 = original board image size
-        const scale = boardSize / 563;
+        const displayY =
+          point.clientY - rect.top;
 
-        // Dynamic radii
+        // Convert display coordinates
+        // back into ORIGINAL IMAGE coordinates
+
+        const x =
+          (displayX / rect.width) *
+          img.naturalWidth;
+
+        const y =
+          (displayY / rect.height) *
+          img.naturalHeight;
+
+        // Original image size
+        const boardSize =
+          img.naturalWidth;
+
+        const center =
+          boardSize / 2;
+
+        // Calibrated dartboard radii
+        // for ORIGINAL image dimensions
+
         const radii = {
-          bullInner: 8 * scale,
-          bullOuter: 21 * scale,
-          tripleInner: 121 * scale,
-          tripleOuter: 134 * scale,
-          doubleInner: 201 * scale,
-          doubleOuter: 214 * scale,
-          outer: 281.5 * scale
+
+          bullInner: 8,
+
+          bullOuter: 21,
+
+          tripleInner: 121,
+
+          tripleOuter: 134,
+
+          doubleInner: 201,
+
+          doubleOuter: 214,
+
+          outer: 281.5
         };
 
-        // Pointer position inside image
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        // Coordinates relative to center
+        // Relative coordinates
         const dx = x - center;
+
         const dy = center - y;
 
         // Distance from center
@@ -206,11 +271,13 @@
 
         // Outside board
         if (distance > radii.outer) {
+
           setLastHit("Missed board");
+
           return;
         }
 
-        // Angle calculation
+        // Angle
         let angle =
           Math.atan2(dx, dy) *
           (180 / Math.PI);
@@ -219,7 +286,7 @@
           angle += 360;
         }
 
-        // Shift by half segment
+        // Shift half segment
         angle = (angle + 9) % 360;
 
         const segmentIndex =
@@ -229,23 +296,30 @@
           numbers[segmentIndex];
 
         let multiplier = 1;
+
         let score = baseValue;
+
         let label = `${baseValue}`;
 
-        // Bullseye checks
-        if (distance <= radii.bullInner) {
+        // Bulls
+        if (
+          distance <= radii.bullInner
+        ) {
 
           score = 50;
+
           label = "Bullseye (50)";
 
-        } else if (
+        }
+        else if (
           distance <= radii.bullOuter
         ) {
 
           score = 25;
-          label = "Outer Bull (25)";
 
-        } else {
+          label = "Outer Bull (25)";
+        }
+        else {
 
           // Triple ring
           if (
@@ -263,22 +337,28 @@
             multiplier = 2;
           }
 
-          score = baseValue * multiplier;
+          score =
+            baseValue * multiplier;
 
           if (multiplier === 2) {
+
             label =
               `Double ${baseValue} (${score})`;
           }
 
           if (multiplier === 3) {
+
             label =
               `Triple ${baseValue} (${score})`;
           }
         }
 
         const throwData = {
+
           score,
+
           label,
+
           timestamp: Date.now()
         };
 
@@ -291,6 +371,7 @@
       };
 
       return (
+
         <div className="app">
 
           {/* Dartboard */}
@@ -301,13 +382,23 @@
             </h1>
 
             <div className="board-wrapper">
+
               <img
-                onClick={handleBoardClick}
+                ref={imgRef}
+
                 src="pngegg.png"
+
                 alt="dartboard"
+
                 className="dartboard"
+
                 draggable="false"
+
+                onTouchStart={handleBoardTouch}
+
+                onMouseDown={handleBoardTouch}
               />
+
             </div>
 
             <h2 className="last-hit">
@@ -326,13 +417,16 @@
               </h2>
 
               <button
+                className="reset-btn"
+
                 onClick={() => {
+
                   setThrows([]);
+
                   setLastHit(
-                    "Click the dartboard to score"
+                    "Tap the dartboard to score"
                   );
                 }}
-                className="reset-btn"
               >
                 Reset
               </button>
@@ -346,16 +440,22 @@
             <div className="throw-list">
 
               {throws.map((t) => (
+
                 <div
                   key={t.timestamp}
                   className="throw-card"
                 >
-                  <strong>{t.label}</strong>
+
+                  <strong>
+                    {t.label}
+                  </strong>
 
                   <div>
                     Score: {t.score}
                   </div>
+
                 </div>
+
               ))}
 
             </div>
@@ -374,6 +474,8 @@
     root.render(
       <DartboardScoreCalculator />
     );
+
   </script>
+
 </body>
 </html>
