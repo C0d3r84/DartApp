@@ -290,22 +290,24 @@
         const center =
           boardSize / 2;
 
+        const scaleFactor = 563/boardSize;  
+
         // Calibrated radii
         const radii = {
 
-          bullInner: 8,
+          bullInner: 8 * scaleFactor,
 
-          bullOuter: 21,
+          bullOuter: 21 * scaleFactor,
 
-          tripleInner: 121,
+          tripleInner: 121 * scaleFactor,
 
-          tripleOuter: 134,
+          tripleOuter: 134 * scaleFactor,
 
-          doubleInner: 201,
+          doubleInner: 201 * scaleFactor,
 
-          doubleOuter: 214,
+          doubleOuter: 214 * scaleFactor,
 
-          outer: 214
+          outer: 214 * scaleFactor
         };
 
         // Relative coordinates
