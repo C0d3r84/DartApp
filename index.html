@@ -157,20 +157,19 @@
       );
 
       // Responsive board size
-      const boardSize = Math.min(window.innerWidth * 0.92, 700);
       const center = boardSize / 2;
 
       // Radii scaled relative to board image
-      const scale = boardSize / 320;
+      const scale = boardSize / 563;
 
       const radii = {
-        bullInner: 4 * scale,
+        bullInner: 8 * scale,
         bullOuter: 21 * scale,
-        tripleInner: 68 * scale,
-        tripleOuter: 75 * scale,
-        doubleInner: 114 * scale,
-        doubleOuter: 122 * scale,
-        outer: 122 * scale
+        tripleInner: 121 * scale,
+        tripleOuter: 134 * scale,
+        doubleInner: 201 * scale,
+        doubleOuter: 214 * scale,
+        outer: 281.5 * scale
       };
 
       const totalScore = throws.reduce(
@@ -295,7 +294,7 @@
             <div className="board-wrapper">
               <img
                 onClick={handleBoardClick}
-                src="https://upload.wikimedia.org/wikipedia/commons/0/06/Dart_board.png"
+                src="pngegg.png"
                 alt="dartboard"
                 className="dartboard"
               />
