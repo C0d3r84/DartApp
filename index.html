@@ -176,6 +176,7 @@ function App() {
       if (!prev) return prev;
       const players=prev.players.map((p,i)=>i===playerIndex ? {...p}:p);
       const p=players[playerIndex];
+      const scoreBefore=p.score;
       p.darts.push(...turnDarts);
       p.turns.push({darts:turnDarts.map(d=>d.score), score:busted?0:turnDarts.reduce((a,d)=>a+d.score,0), busted, checkout});
       p.busts += busted ? 1 : 0;
@@ -191,7 +192,7 @@ function App() {
       if (turnTotal>=100) p.scores100=(p.scores100||0)+1;
       if (turnTotal>=60) p.scores60=(p.scores60||0)+1;
       p.highestScore=Math.max(p.highestScore||0,turnTotal);
-      if (checkout) { p.checkouts++; p.highestCheckout=Math.max(p.highestCheckout||0,turnDarts.reduce((a,d)=>a+d.score,0)); }
+      if (checkout) { p.checkouts++; p.highestCheckout=Math.max(p.highestCheckout||0,scoreBefore); }
       if (scoreBefore<=170 && scoreBefore>1) p.checkoutAttempts++;
 
       if (!busted) p.score=newScore;
@@ -268,15 +269,15 @@ function Match({game,registerTurn,robot,robotAvg}) {
   const robotRunning=useRef(false);
   const player=game.players[game.current];
   const currentScore=player.score;
+  const isRobotTurn=robot && game.current===1;
 
   useEffect(()=>{
-    if (robot && game.current===1) {
-      const timer=setTimeout(()=>robotTurn(),450);
+    if (isRobotTurn && !robotRunning.current) {
+      const timer=setTimeout(()=>robotTurn(),500);
       return ()=>clearTimeout(timer);
     }
-  },[game.current,game.legNumber,robot,game.players[game.current].score]);
-
-  useEffect(()=>{ if(game.current!==1) robotRunning.current=false; },[game.current,game.legNumber]);
+    if (!isRobotTurn) robotRunning.current=false;
+  },[game.current,game.legNumber,robot]);
 
   const scorePoint=(clientX,clientY)=>{
     const img=imgRef.current;if(!img)return null;
@@ -288,18 +289,18 @@ function Match({game,registerTurn,robot,robotAvg}) {
     const boardSize=img.naturalWidth, center=boardSize/2, sf=563/boardSize;
     const radii={bullInner:8*sf,bullOuter:21*sf,tripleInner:121*sf,tripleOuter:134*sf,doubleInner:201*sf,doubleOuter:214*sf,outer:214*sf};
     const dx=x-center,dy=center-y,d=Math.sqrt(dx*dx+dy*dy);
-    if(d>radii.outer)return {score:0,base:0,label:"Miss"};
+    if(d>radii.outer)return {score:0,base:0,multiplier:1,label:"Miss"};
     let angle=Math.atan2(dx,dy)*180/Math.PI;if(angle<0)angle+=360;angle=(angle+9)%360;
     const base=NUMBERS[Math.floor(angle/18)];
     if(d<=radii.bullInner)return {score:50,base:25,multiplier:1,label:"Bullseye (50)"};
-    if(d<=radii.bullOuter)return {score:25,base:25,label:"Outer Bull (25)"};
+    if(d<=radii.bullOuter)return {score:25,base:25,multiplier:1,label:"Outer Bull (25)"};
     let mult=1;if(d>=radii.tripleInner&&d<=radii.tripleOuter)mult=3;if(d>=radii.doubleInner&&d<=radii.doubleOuter)mult=2;
     const score=base*mult;
-    return {score,base,label:mult===3?`Triple ${base} (${score})`:mult===2?`Double ${base} (${score})`:`${base} (${score})`};
+    return {score,base,multiplier:mult,label:mult===3?`Triple ${base} (${score})`:mult===2?`Double ${base} (${score})`:`${base} (${score})`};
   };
 
   const addDart=(d)=>{
-    if(!d)return;
+    if(!d || isRobotTurn)return;
     const next=[...turnDarts,d];
     const raw=next.reduce((a,x)=>a+x.score,0);
     const remaining=currentScore-raw;
@@ -320,12 +321,16 @@ function Match({game,registerTurn,robot,robotAvg}) {
 
   const onPointerDown=e=>{
     e.preventDefault();
+    if(isRobotTurn)return;
     if(e.pointerType==="mouse" && e.button!==0)return;
     const d=scorePoint(e.clientX,e.clientY);
     addDart(d);
   };
 
   const robotTurn=()=>{
+    if(!robot || game.current!==1 || robotRunning.current)return;
+    robotRunning.current=true;
+
     let darts=[], remaining=player.score;
     const targetAvg=robotAvg;
     for(let i=0;i<3;i++){
@@ -333,24 +338,38 @@ function Match({game,registerTurn,robot,robotAvg}) {
         const checkout=robotCheckout(remaining);
         if(checkout){ darts.push(checkout); remaining=0; break; }
       }
-      const target=Math.max(0,Math.round(weightedNormal(targetAvg/3, targetAvg*.16)));
+      const target=Math.max(1,Math.round(weightedNormal(targetAvg/3, targetAvg*.16)));
       const d=robotScoringDart(target);
       darts.push(d);
       remaining-=d.score;
       if(remaining<0 || remaining===1){ remaining=player.score; break; }
     }
+
     const raw=darts.reduce((a,d)=>a+d.score,0);
     const busted=remaining===player.score && raw>0;
-    setLastHit(busted?`Robot busts — ${raw}`:`Robot scored ${raw}`);
-    setThrows(prev=>darts.map((d,i)=>({...d,id:Date.now()+i})).concat(prev).slice(0,9));
-    setTimeout(()=>registerTurn(1,darts,busted?player.score:remaining,busted,remaining===0),250);
+    const checkout=remaining===0;
+    const finalScore=busted?player.score:remaining;
+
+    // Reveal exactly one robot dart every 5 seconds.
+    darts.forEach((d,i)=>{
+      setTimeout(()=>{
+        setLastHit(busted && i===darts.length-1 ? `Robot busts — ${raw}` : `Robot: ${d.label}`);
+        setThrows(prev=>[{...d,id:Date.now()+i+Math.random()},...prev].slice(0,9));
+      },i*5000);
+    });
+
+    setTimeout(()=>{
+      registerTurn(1,darts,finalScore,busted,checkout);
+      robotRunning.current=false;
+    },Math.max(0,darts.length-1)*5000+300);
   };
 
   return <div className="board-card">
     <div className="match-head">
       <h1>{game.type} • First to {game.firstTo}</h1>
-      <div className="turn-info">Leg {game.legNumber}<br/><span style={{color:"#2563eb"}}>{player.name}'s turn</span></div>
+      <div className="turn-info">Leg {game.legNumber}<br/><span style={{color:"#2563eb"}}>{player.name}'s turn{isRobotTurn?" 🤖":""}</span></div>
     </div>
+    {isRobotTurn && <div style={{width:"100%",textAlign:"center",padding:"10px",margin:"6px 0 10px",background:"#fef3c7",borderRadius:10,fontWeight:800}}>🤖 Robot is throwing — one dart every 5 seconds</div>}
     <div className="dartboard-wrap">
       <img ref={imgRef} src="pngegg.png" alt="dartboard" className="dartboard" draggable="false" onPointerDown={onPointerDown}/>
     </div>
