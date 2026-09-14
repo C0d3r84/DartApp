@@ -176,7 +176,6 @@ function App() {
       if (!prev) return prev;
       const players=prev.players.map((p,i)=>i===playerIndex ? {...p}:p);
       const p=players[playerIndex];
-      const scoreBefore=p.score;
       p.darts.push(...turnDarts);
       p.turns.push({darts:turnDarts.map(d=>d.score), score:busted?0:turnDarts.reduce((a,d)=>a+d.score,0), busted, checkout});
       p.busts += busted ? 1 : 0;
@@ -192,8 +191,8 @@ function App() {
       if (turnTotal>=100) p.scores100=(p.scores100||0)+1;
       if (turnTotal>=60) p.scores60=(p.scores60||0)+1;
       p.highestScore=Math.max(p.highestScore||0,turnTotal);
-      if (checkout) { p.checkouts++; p.highestCheckout=Math.max(p.highestCheckout||0,scoreBefore); }
-      if (scoreBefore<=170 && scoreBefore>1) p.checkoutAttempts++;
+      if (checkout) { p.checkouts++; p.highestCheckout=Math.max(p.highestCheckout||0,p.score); }
+      if (p.score<=170 && p.score>1) p.checkoutAttempts++;
 
       if (!busted) p.score=newScore;
       const won = checkout && newScore===0;
