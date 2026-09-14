@@ -56,17 +56,32 @@
     .stats-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
     .stat { background:#f3f4f6; padding:12px; border-radius:12px; }
     .stat b { display:block; font-size:23px; margin-top:3px; }
-    .heat-wrap { margin-top:18px; }
-    .heat-title { display:flex; justify-content:space-between; align-items:center; gap:10px; }
-    .heatmap { width:min(100%,520px); aspect-ratio:1; margin:12px auto; position:relative; }
-    .heat-segment { position:absolute; width:50%; height:50%; left:50%; top:50%; transform-origin:0 0; clip-path:polygon(0 0,100% 0,82% 100%,0 100%); display:flex; align-items:flex-start; justify-content:center; padding-top:8px; font-weight:900; color:#111; }
-    .heat-segment span { transform:rotate(9deg); }
-    .heat-legend { text-align:center; font-size:12px; color:#6b7280; }
     .history-list { margin-top:14px; }
     .history-row { padding:10px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; }
     .empty { color:#6b7280; }
     .setup-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
     .robot-note { margin-top:8px; padding:10px; background:#fef3c7; border-radius:10px; font-size:13px; }
+    body.dark-mode { background:#111827; color:#f3f4f6; }
+    body.dark-mode .setup,
+    body.dark-mode .board-card,
+    body.dark-mode .score-panel,
+    body.dark-mode .modal { background:#1f2937; color:#f3f4f6; box-shadow:0 4px 20px rgba(0,0,0,.35); }
+    body.dark-mode .field label,
+    body.dark-mode .mode-note,
+    body.dark-mode .player-meta,
+    body.dark-mode .empty { color:#9ca3af; }
+    body.dark-mode .field input,
+    body.dark-mode .field select { background:#111827; color:#f3f4f6; border-color:#4b5563; }
+    body.dark-mode .player-card,
+    body.dark-mode .throw-card,
+    body.dark-mode .stat { background:#374151; color:#f3f4f6; }
+    body.dark-mode .player-card.active { background:#1e3a5f; border-color:#60a5fa; }
+    body.dark-mode .history-row { border-bottom-color:#4b5563; }
+    body.dark-mode .btn.light { background:#374151; color:#f3f4f6; }
+    body.dark-mode .robot-note { background:#4b3b14; color:#fef3c7; }
+    .theme-toggle { display:flex; align-items:center; gap:7px; white-space:nowrap; }
+    .saved-count { color:#6b7280; }
+    body.dark-mode .saved-count { color:#9ca3af; }
     @media (max-width:760px) {
       .setup-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
       .player-fields { grid-template-columns:1fr; }
@@ -116,6 +131,13 @@ function App() {
   const [modal, setModal] = useState(null);
   const [store, setStore] = useState(loadStore());
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dartApp_theme") === "dark");
+
+  useEffect(() => {
+    document.body.classList.toggle("dark-mode", darkMode);
+    localStorage.setItem("dartApp_theme", darkMode ? "dark" : "light");
+    return () => document.body.classList.remove("dark-mode");
+  }, [darkMode]);
 
   const [gameType, setGameType] = useState("501");
   const [playerCount, setPlayerCount] = useState("2");
@@ -220,7 +242,10 @@ function App() {
       <div className="app">
         <div className="topbar">
           <div className="brand">🎯 Dartboard Score Calculator</div>
-          <div style={{display:"flex",gap:8}}>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+            <button className="btn light theme-toggle" onClick={()=>setDarkMode(v=>!v)} aria-label="Toggle dark or light mode">
+              {darkMode ? "☀️ Light" : "🌙 Dark"}
+            </button>
             {game && <button className="btn light" onClick={()=>{setGame(null);setSetup(true)}}>End Match</button>}
             <button className="btn" onClick={()=>setHistoryOpen(true)}>History</button>
           </div>
@@ -238,15 +263,18 @@ function App() {
               {robot && <div className="field"><label>Robot average</label><select value={robotAvg} onChange={e=>setRobotAvg(Number(e.target.value))}>{ROBOT_AVGS.map(a=><option key={a} value={a}>{a}</option>)}</select></div>}
             </div>
 
+            <datalist id="saved-players">
+              {Object.keys(store.users).filter(n=>n && n !== "Robot").sort((a,b)=>a.localeCompare(b)).map(n=><option key={n} value={n} />)}
+            </datalist>
             <div className="player-fields" style={{marginTop:12}}>
-              <div className="field"><label>Player 1 name</label><input value={names[0]} onChange={e=>setNames([e.target.value,names[1]])} placeholder="Player 1" /></div>
-              {!robot && Number(playerCount)===2 && <div className="field"><label>Player 2 name</label><input value={names[1]} onChange={e=>setNames([names[0],e.target.value])} placeholder="Player 2" /></div>}
+              <div className="field"><label>Player 1 name</label><input list="saved-players" value={names[0]} onChange={e=>setNames([e.target.value,names[1]])} placeholder="Enter or select saved player" /></div>
+              {!robot && Number(playerCount)===2 && <div className="field"><label>Player 2 name</label><input list="saved-players" value={names[1]} onChange={e=>setNames([names[0],e.target.value])} placeholder="Enter or select saved player" /></div>}
             </div>
 
             {robot && <div className="robot-note">Robot model: its scoring is centered around the selected 3-dart average and its checkout chance scales from <b>10%</b> at 40 average to <b>50%</b> at 100 average.</div>}
             <div className="setup-actions">
               <button className="btn primary" onClick={startGame}>Start Match</button>
-              {Object.keys(store.users).length>0 && <span style={{alignSelf:"center",fontSize:13,color:"#6b7280"}}>{Object.keys(store.users).length} saved player(s)</span>}
+              {Object.keys(store.users).length>0 && <span className="saved-count" style={{alignSelf:"center",fontSize:13}}>{Object.keys(store.users).length} saved player(s)</span>}
             </div>
           </div>
         )}
@@ -349,12 +377,12 @@ function Match({game,registerTurn,robot,robotAvg}) {
     const checkout=remaining===0;
     const finalScore=busted?player.score:remaining;
 
-    // Reveal exactly one robot dart every 5 seconds.
+    // Reveal exactly one robot dart every 2 seconds.
     darts.forEach((d,i)=>{
       setTimeout(()=>{
         setLastHit(busted && i===darts.length-1 ? `Robot busts — ${raw}` : `Robot: ${d.label}`);
         setThrows(prev=>[{...d,id:Date.now()+i+Math.random()},...prev].slice(0,9));
-      },i*5000);
+      },i*2000);
     });
 
     setTimeout(()=>{
@@ -368,9 +396,9 @@ function Match({game,registerTurn,robot,robotAvg}) {
       <h1>{game.type} • First to {game.firstTo}</h1>
       <div className="turn-info">Leg {game.legNumber}<br/><span style={{color:"#2563eb"}}>{player.name}'s turn{isRobotTurn?" 🤖":""}</span></div>
     </div>
-    {isRobotTurn && <div style={{width:"100%",textAlign:"center",padding:"10px",margin:"6px 0 10px",background:"#fef3c7",borderRadius:10,fontWeight:800}}>🤖 Robot is throwing — one dart every 5 seconds</div>}
+    {isRobotTurn && <div style={{width:"100%",textAlign:"center",padding:"10px",margin:"6px 0 10px",background:"#fef3c7",borderRadius:10,fontWeight:800}}>🤖 Robot is throwing — one dart every 2 seconds</div>}
     <div className="dartboard-wrap">
-      <img ref={imgRef} src="pngegg.png" alt="dartboard" className="dartboard" draggable="false" onPointerDown={onPointerDown}/>
+      <img ref={imgRef} src="Dartboard.png" alt="dartboard" className="dartboard" draggable="false" onPointerDown={onPointerDown}/>
     </div>
     <div className="last-hit">{lastHit}</div>
     <div className="players">
@@ -423,61 +451,81 @@ function StatsModal({match,onClose}) {
     <div className="modal">
       <div className="modal-head"><h2>🏆 Match Statistics</h2><button className="btn light" onClick={onClose}>Close</button></div>
       <p><b>{match.type}</b> • First to {match.firstTo} • Winner: <b>{match.winner}</b></p>
-      {match.players.map((p,i)=><div key={i} style={{marginBottom:24}}>
-        <h3>{p.name} {p.legs?"— "+p.legs+" legs":""}</h3>
-        <div className="stats-grid">
-          <div className="stat">3-dart average<b>{average(p.darts).toFixed(2)}</b></div>
-          <div className="stat">First 9 average<b>{firstNine(p.darts).toFixed(2)}</b></div>
-          <div className="stat">Checkout %<b>{p.checkoutAttempts?formatPct(p.checkouts/p.checkoutAttempts):"—"}</b></div>
-          <div className="stat">Darts thrown<b>{p.darts.length}</b></div>
-          <div className="stat">180s<b>{p.scores180||0}</b></div>
-          <div className="stat">140+ visits<b>{p.scores140||0}</b></div>
-          <div className="stat">100+ visits<b>{p.scores100||0}</b></div>
-          <div className="stat">60+ visits<b>{p.scores60||0}</b></div>
-          <div className="stat">Highest score<b>{p.highestScore||0}</b></div>
-          <div className="stat">Highest checkout<b>{p.highestCheckout||0}</b></div>
-        </div>
-        <div className="heat-wrap">
-          <div className="heat-title"><h4 style={{marginBottom:0}}>Segment hit heatmap</h4><span style={{fontSize:12,color:"#6b7280"}}>hits: {Object.values(p.segmentHits).reduce((a,b)=>a+b,0)}</span></div>
-          <Heatmap hits={p.segmentHits}/>
-        </div>
-      </div>)}
-    </div>
-  </div>;
-}
-function heatColor(v,max) {
-  const a=max?Math.min(1,v/max):0;
-  return `hsl(${Math.round(120-120*a)} 85% ${Math.round(92-42*a)}%)`;
-}
-function Heatmap({hits}) {
-  const max=Math.max(1,...Object.values(hits));
-  return <div>
-    <div className="heatmap">
-      <div style={{position:"absolute",inset:"6%",borderRadius:"50%",background:"#111827",boxShadow:"inset 0 0 0 2px #fff, inset 0 0 0 28px #f3f4f6"}}></div>
-      {NUMBERS.map((n,i)=>{
-        const count=hits[n]||0, angle=i*18;
-        const r=40, rad=(angle-90)*Math.PI/180;
-        const x=50+r*Math.cos(rad), y=50+r*Math.sin(rad);
-        return <div key={n} style={{position:"absolute",left:`${x}%`,top:`${y}%`,transform:"translate(-50%,-50%)",width:42,height:42,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:14,background:heatColor(count,max),border:"2px solid #fff",boxShadow:"0 1px 4px rgba(0,0,0,.25)"}}>{n}<small style={{position:"absolute",marginTop:28,fontSize:9}}>{count}</small></div>
-      })}
-      <div style={{position:"absolute",left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:34,height:34,borderRadius:"50%",background:"#ef4444",border:"3px solid #fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900}}>BULL</div>
-    </div>
-    <div className="heat-legend">Darker/hotter segments = more hits. Number below each segment = hit count.</div>
-  </div>;
-}
-function HistoryModal({store,onClose}) {
-  return <div className="modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
-    <div className="modal">
-      <div className="modal-head"><h2>Saved Match History</h2><button className="btn light" onClick={onClose}>Close</button></div>
-      {store.matches.length===0?<p className="empty">No completed matches yet.</p>:store.matches.map(m=><div className="history-row" key={m.id}>
-        <div><b>{m.type} — first to {m.firstTo}</b><br/><span style={{fontSize:12,color:"#6b7280"}}>{new Date(m.date).toLocaleString()}</span></div>
-        <div style={{textAlign:"right"}}>Winner: <b>{m.winner}</b><br/><span style={{fontSize:12}}>{m.players.map(p=>`${p.name}: ${p.legs}`).join(" • ")}</span></div>
-      </div>)}
+      {match.players.map((p,i)=><PlayerStats key={i} p={p}/>) }
     </div>
   </div>;
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
-</html>
+function PlayerStats({p, compact=false}) {
+  return <div style={{marginBottom:compact?16:24}}>
+    <h3 style={{marginBottom:10}}>{p.name} {p.legs?`— ${p.legs} legs`:""}</h3>
+    <div className="stats-grid">
+      <div className="stat">3-dart average<b>{average(p.darts).toFixed(2)}</b></div>
+      <div className="stat">First 9 average<b>{firstNine(p.darts).toFixed(2)}</b></div>
+      <div className="stat">Checkout %<b>{p.checkoutAttempts?formatPct(p.checkouts/p.checkoutAttempts):"—"}</b></div>
+      <div className="stat">Darts thrown<b>{p.darts.length}</b></div>
+      <div className="stat">180s<b>{p.scores180||0}</b></div>
+      <div className="stat">140+ visits<b>{p.scores140||0}</b></div>
+      <div className="stat">100+ visits<b>{p.scores100||0}</b></div>
+      <div className="stat">60+ visits<b>{p.scores60||0}</b></div>
+      <div className="stat">Highest score<b>{p.highestScore||0}</b></div>
+      <div className="stat">Highest checkout<b>{p.highestCheckout||0}</b></div>
+      <div className="stat">Checkouts<b>{p.checkouts||0}</b></div>
+      <div className="stat">Busts<b>{p.busts||0}</b></div>
+    </div>
+  </div>;
+}
+
+function aggregatePlayerStats(matches) {
+  const map={};
+  matches.forEach(m=>m.players.forEach(p=>{
+    if(!p.name || p.name === "Robot") return;
+    const key=p.name.trim();
+    if(!key) return;
+    if(!map[key]) map[key]={name:key,games:0,legs:0,darts:[],turns:[],checkoutAttempts:0,checkouts:0,busts:0,scores180:0,scores140:0,scores100:0,scores60:0,highestScore:0,highestCheckout:0};
+    const a=map[key];
+    a.games++;
+    a.legs += p.legs||0;
+    a.darts.push(...(p.darts||[]));
+    a.turns.push(...(p.turns||[]));
+    a.checkoutAttempts += p.checkoutAttempts||0;
+    a.checkouts += p.checkouts||0;
+    a.busts += p.busts||0;
+    a.scores180 += p.scores180||0;
+    a.scores140 += p.scores140||0;
+    a.scores100 += p.scores100||0;
+    a.scores60 += p.scores60||0;
+    a.highestScore=Math.max(a.highestScore,p.highestScore||0);
+    a.highestCheckout=Math.max(a.highestCheckout,p.highestCheckout||0);
+  }));
+  return Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));
+}
+
+function HistoryModal({store,onClose}) {
+  const [expanded,setExpanded]=useState(null);
+  const overall=useMemo(()=>aggregatePlayerStats(store.matches),[store.matches]);
+  return <div className="modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="modal">
+      <div className="modal-head"><h2>📊 Statistics & Match History</h2><button className="btn light" onClick={onClose}>Close</button></div>
+
+      <h3 style={{marginBottom:10}}>Overall Statistics</h3>
+      {overall.length===0 ? <p className="empty">No player statistics yet.</p> : overall.map(p=><div key={p.name} style={{marginBottom:20}}><PlayerStats p={p} compact/></div>)}
+
+      <h3 style={{marginTop:24}}>Match History</h3>
+      {store.matches.length===0?<p className="empty">No completed matches yet.</p>:<div className="history-list">{store.matches.map(m=>{
+        const isOpen=expanded===m.id;
+        return <div className="history-row" key={m.id} style={{display:"block"}}>
+          <button onClick={()=>setExpanded(isOpen?null:m.id)} style={{width:"100%",border:0,background:"transparent",padding:0,textAlign:"left",color:"inherit"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:10}}>
+              <div><b>{m.type} — first to {m.firstTo}</b><br/><span style={{fontSize:12,color:"#6b7280"}}>{new Date(m.date).toLocaleString()}</span></div>
+              <div style={{textAlign:"right"}}>Winner: <b>{m.winner}</b><br/><span style={{fontSize:12}}>{m.players.map(p=>`${p.name}: ${p.legs}`).join(" • ")}</span></div>
+            </div>
+          </button>
+          {isOpen && <div style={{marginTop:16,paddingTop:14,borderTop:"1px solid #e5e7eb"}}>{m.players.map((p,i)=><PlayerStats key={i} p={p} compact/>)}</div>}
+        </div>;
+      })}</div>}
+    </div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
