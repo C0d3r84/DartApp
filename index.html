@@ -190,7 +190,7 @@ function App() {
       if (turnTotal>=100) p.scores100=(p.scores100||0)+1;
       if (turnTotal>=60) p.scores60=(p.scores60||0)+1;
       p.highestScore=Math.max(p.highestScore||0,turnTotal);
-      if (checkout) { p.checkouts++; p.highestCheckout=Math.max(p.highestCheckout||0,currentScore); }
+      if (checkout) { p.checkouts++; p.highestCheckout=Math.max(p.highestCheckout||0,turnDarts.reduce((a,d)=>a+d.score,0)); }
       if (currentScore<=170 && currentScore>1 && !busted) p.checkoutAttempts++;
 
       if (!busted) p.score=newScore;
