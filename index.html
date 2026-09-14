@@ -123,6 +123,7 @@ function App() {
   const [names, setNames] = useState(["Player 1","Player 2"]);
   const [robot, setRobot] = useState(false);
   const [robotAvg, setRobotAvg] = useState(70);
+  const [startingPlayer, setStartingPlayer] = useState(0);
 
   const startGame = () => {
     const count = robot ? 2 : Number(playerCount);
@@ -143,7 +144,7 @@ function App() {
     if (robot) ps[1].name = "Robot";
     setGame({
       type:Number(gameType), firstTo:Number(firstTo), players:ps,
-      current:0, legNumber:1, legDartCount:0, legStartDarts:{}, startedAt:Date.now()
+      current:startingPlayer, legNumber:1, legStartDarts:{}, startedAt:Date.now()
     });
     setSetup(false);
   };
@@ -191,7 +192,7 @@ function App() {
       if (turnTotal>=60) p.scores60=(p.scores60||0)+1;
       p.highestScore=Math.max(p.highestScore||0,turnTotal);
       if (checkout) { p.checkouts++; p.highestCheckout=Math.max(p.highestCheckout||0,turnDarts.reduce((a,d)=>a+d.score,0)); }
-      if (currentScore<=170 && currentScore>1 && !busted) p.checkoutAttempts++;
+      if (scoreBefore<=170 && scoreBefore>1) p.checkoutAttempts++;
 
       if (!busted) p.score=newScore;
       const won = checkout && newScore===0;
@@ -209,7 +210,8 @@ function App() {
       }
 
       const resetPlayers=players.map(x=>({...x,score:prev.type}));
-      return {...prev,players:resetPlayers,current:playerIndex===players.length-1?0:playerIndex+1,legNumber:prev.legNumber+1,legDartCount:0};
+      const nextStarter = players.length===2 ? (playerIndex===0 ? 1 : 0) : playerIndex;
+      return {...prev,players:resetPlayers,current:nextStarter,legNumber:prev.legNumber+1,legDartCount:0};
     });
   };
 
@@ -231,6 +233,7 @@ function App() {
               <div className="field"><label>Game</label><select value={gameType} onChange={e=>setGameType(e.target.value)}><option value="301">301</option><option value="501">501</option></select></div>
               <div className="field"><label>Players</label><select value={robot?"2":playerCount} disabled={robot} onChange={e=>setPlayerCount(e.target.value)}><option value="1">1</option><option value="2">2</option></select></div>
               <div className="field"><label>First to</label><select value={firstTo} onChange={e=>setFirstTo(e.target.value)}>{[1,2,3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n} leg{n>1?"s":""}</option>)}</select></div>
+              <div className="field"><label>Start first leg</label><select value={startingPlayer} onChange={e=>setStartingPlayer(Number(e.target.value))}><option value={0}>{names[0] || "Player 1"}</option>{(robot || Number(playerCount)===2) && <option value={1}>{robot ? "Robot" : (names[1] || "Player 2")}</option>}</select></div>
               <div className="field"><label>Opponent</label><select value={robot?"robot":"human"} onChange={e=>setRobot(e.target.value==="robot")}><option value="human">Human player</option><option value="robot">Robot</option></select></div>
               {robot && <div className="field"><label>Robot average</label><select value={robotAvg} onChange={e=>setRobotAvg(Number(e.target.value))}>{ROBOT_AVGS.map(a=><option key={a} value={a}>{a}</option>)}</select></div>}
             </div>
@@ -262,6 +265,7 @@ function Match({game,registerTurn,robot,robotAvg}) {
   const [lastHit,setLastHit]=useState("Tap the dartboard to score");
   const [turnDarts,setTurnDarts]=useState([]);
   const imgRef=useRef(null);
+  const robotRunning=useRef(false);
   const player=game.players[game.current];
   const currentScore=player.score;
 
@@ -270,7 +274,9 @@ function Match({game,registerTurn,robot,robotAvg}) {
       const timer=setTimeout(()=>robotTurn(),450);
       return ()=>clearTimeout(timer);
     }
-  },[game.current,game.legNumber,robot]);
+  },[game.current,game.legNumber,robot,game.players[game.current].score]);
+
+  useEffect(()=>{ if(game.current!==1) robotRunning.current=false; },[game.current,game.legNumber]);
 
   const scorePoint=(clientX,clientY)=>{
     const img=imgRef.current;if(!img)return null;
@@ -285,7 +291,7 @@ function Match({game,registerTurn,robot,robotAvg}) {
     if(d>radii.outer)return {score:0,base:0,label:"Miss"};
     let angle=Math.atan2(dx,dy)*180/Math.PI;if(angle<0)angle+=360;angle=(angle+9)%360;
     const base=NUMBERS[Math.floor(angle/18)];
-    if(d<=radii.bullInner)return {score:50,base:25,label:"Bullseye (50)"};
+    if(d<=radii.bullInner)return {score:50,base:25,multiplier:1,label:"Bullseye (50)"};
     if(d<=radii.bullOuter)return {score:25,base:25,label:"Outer Bull (25)"};
     let mult=1;if(d>=radii.tripleInner&&d<=radii.tripleOuter)mult=3;if(d>=radii.doubleInner&&d<=radii.doubleOuter)mult=2;
     const score=base*mult;
@@ -378,18 +384,18 @@ function firstNine(darts) {
   return d.reduce((s,x)=>s+x.score,0)/(d.length/3);
 }
 function robotScoringDart(target) {
-  if(target>=45 && Math.random()<.20) { const n=NUMBERS[Math.floor(Math.random()*20)]; return {score:n*2,base:n,label:`Double ${n} (${n*2})`}; }
-  if(target>=35 && Math.random()<.30) { const n=NUMBERS[Math.floor(Math.random()*20)]; return {score:n*3,base:n,label:`Triple ${n} (${n*3})`}; }
+  if(target>=45 && Math.random()<.20) { const n=NUMBERS[Math.floor(Math.random()*20)]; return {score:n*2,base:n,multiplier:2,label:`Double ${n} (${n*2})`}; }
+  if(target>=35 && Math.random()<.30) { const n=NUMBERS[Math.floor(Math.random()*20)]; return {score:n*3,base:n,multiplier:3,label:`Triple ${n} (${n*3})`}; }
   const n=Math.max(1,Math.min(20,Math.round(target)));
-  return {score:n,base:n,label:`${n} (${n})`};
+  return {score:n,base:n,multiplier:1,label:`${n} (${n})`};
 }
 function robotCheckout(rem) {
-  if(rem===50)return {score:50,base:25,label:"Bullseye (50)"};
-  if(rem>1 && rem%2===0 && rem/2<=20){const n=rem/2;return {score:rem,base:n,label:`Double ${n} (${rem})`};}
+  if(rem===50)return {score:50,base:25,multiplier:1,label:"Bullseye (50)"};
+  if(rem>1 && rem%2===0 && rem/2<=20){const n=rem/2;return {score:rem,base:n,multiplier:2,label:`Double ${n} (${rem})`};}
   for(let n=20;n>=1;n--) for(let t=1;t<=3;t++) {
     const s=n*t, left=rem-s;
-    if(left===50)return {score:s,base:n,label:`${t===3?"Triple ":t===2?"Double ":""}${n} (${s})`};
-    if(left>1&&left%2===0&&left/2<=20)return {score:s,base:n,label:`${t===3?"Triple ":t===2?"Double ":""}${n} (${s})`};
+    if(left===50)return {score:s,base:n,multiplier:t,label:`${t===3?"Triple ":t===2?"Double ":""}${n} (${s})`};
+    if(left>1&&left%2===0&&left/2<=20)return {score:s,base:n,multiplier:t,label:`${t===3?"Triple ":t===2?"Double ":""}${n} (${s})`};
   }
   return null;
 }
