@@ -2,550 +2,458 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="
-      width=device-width,
-      initial-scale=1.0,
-      maximum-scale=1.0,
-      user-scalable=no
-    "
-  />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Dartboard Score Calculator</title>
 
-  <!-- React -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; min-height: 100%; }
+    body { font-family: Arial, sans-serif; background: #eef1f5; color: #111827; overflow-x: hidden; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .app { min-height: 100vh; padding: 14px; display:flex; flex-direction:column; align-items:center; }
+    .topbar { width:100%; max-width:1100px; display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+    .brand { font-size:22px; font-weight:800; }
+    .btn { border:0; border-radius:10px; padding:10px 14px; background:#1f2937; color:#fff; font-weight:700; }
+    .btn.primary { background:#2563eb; }
+    .btn.green { background:#16a34a; }
+    .btn.red { background:#dc2626; }
+    .btn.light { background:#e5e7eb; color:#111827; }
+    .btn:disabled { opacity:.45; cursor:not-allowed; }
+    .setup, .board-card, .score-panel { width:100%; max-width:1100px; background:#fff; border-radius:20px; box-shadow:0 4px 20px rgba(0,0,0,.08); }
+    .setup { padding:18px; margin-bottom:14px; }
+    .setup-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; align-items:end; }
+    .field label { display:block; font-size:12px; font-weight:800; text-transform:uppercase; color:#6b7280; margin-bottom:6px; }
+    .field input, .field select { width:100%; padding:11px 12px; border:1px solid #d1d5db; border-radius:10px; background:#fff; }
+    .player-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .mode-note { margin:10px 0 0; font-size:13px; color:#6b7280; }
+    .board-card { padding:18px; display:flex; flex-direction:column; align-items:center; }
+    .match-head { width:100%; display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+    .match-head h1 { margin:0; font-size:25px; }
+    .turn-info { text-align:right; font-weight:800; }
+    .dartboard-wrap { width:min(92vw,700px); aspect-ratio:1; position:relative; }
+    .dartboard { width:100%; height:100%; object-fit:contain; display:block; border-radius:50%; user-select:none; -webkit-user-select:none; -webkit-user-drag:none; touch-action:none; cursor:crosshair; }
+    .last-hit { min-height:30px; text-align:center; margin:12px 0 0; font-size:22px; }
+    .players { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+    .player-card { background:#f3f4f6; border-radius:14px; padding:12px; border:2px solid transparent; }
+    .player-card.active { border-color:#2563eb; background:#eff6ff; }
+    .player-name { font-weight:800; font-size:17px; }
+    .player-score { font-size:38px; font-weight:900; line-height:1.05; margin:4px 0; }
+    .player-meta { font-size:12px; color:#6b7280; }
+    .score-panel { padding:18px; margin-top:14px; }
+    .score-header { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+    .score-header h2 { margin:0; }
+    .throw-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-top:12px; }
+    .throw-card { background:#f3f4f6; padding:12px; border-radius:12px; }
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.62); display:flex; align-items:center; justify-content:center; padding:14px; z-index:20; }
+    .modal { width:min(100%,1000px); max-height:92vh; overflow:auto; background:#fff; border-radius:20px; padding:20px; }
+    .modal-head { display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:14px; }
+    .modal-head h2 { margin:0; }
+    .stats-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+    .stat { background:#f3f4f6; padding:12px; border-radius:12px; }
+    .stat b { display:block; font-size:23px; margin-top:3px; }
+    .heat-wrap { margin-top:18px; }
+    .heat-title { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .heatmap { width:min(100%,520px); aspect-ratio:1; margin:12px auto; position:relative; }
+    .heat-segment { position:absolute; width:50%; height:50%; left:50%; top:50%; transform-origin:0 0; clip-path:polygon(0 0,100% 0,82% 100%,0 100%); display:flex; align-items:flex-start; justify-content:center; padding-top:8px; font-weight:900; color:#111; }
+    .heat-segment span { transform:rotate(9deg); }
+    .heat-legend { text-align:center; font-size:12px; color:#6b7280; }
+    .history-list { margin-top:14px; }
+    .history-row { padding:10px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; }
+    .empty { color:#6b7280; }
+    .setup-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+    .robot-note { margin-top:8px; padding:10px; background:#fef3c7; border-radius:10px; font-size:13px; }
+    @media (max-width:760px) {
+      .setup-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .player-fields { grid-template-columns:1fr; }
+      .players { grid-template-columns:1fr; }
+      .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .match-head h1 { font-size:20px; }
+      .dartboard-wrap { width:min(94vw,700px); }
     }
-
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      overflow-x: hidden;
+    @media (max-width:450px) {
+      .app { padding:8px; }
+      .setup, .board-card, .score-panel { border-radius:15px; padding:12px; }
+      .setup-grid { grid-template-columns:1fr; }
+      .topbar { align-items:flex-start; }
+      .brand { font-size:18px; }
+      .player-score { font-size:32px; }
     }
-
-    .app {
-      min-height: 100vh;
-
-      padding: 16px;
-
-      display: flex;
-
-      flex-direction: column;
-
-      align-items: center;
-    }
-
-    .board-card {
-
-      width: 100%;
-
-      max-width: 900px;
-
-      background: white;
-
-      border-radius: 24px;
-
-      padding: 20px;
-
-      box-shadow:
-        0 4px 20px rgba(0,0,0,0.1);
-
-      display: flex;
-
-      flex-direction: column;
-
-      align-items: center;
-    }
-
-    .board-title {
-      margin-top: 0;
-      text-align: center;
-    }
-
-    .board-wrapper {
-
-      width: 100%;
-
-      display: flex;
-
-      justify-content: center;
-
-      align-items: center;
-    }
-
-    .dartboard {
-
-      width: min(92vw, 700px);
-
-      height: min(92vw, 700px);
-
-      max-width: 100%;
-
-      object-fit: contain;
-
-      border-radius: 50%;
-
-      cursor: crosshair;
-
-      user-select: none;
-
-      -webkit-user-select: none;
-
-      -webkit-user-drag: none;
-
-      touch-action: none;
-    }
-
-    .last-hit {
-
-      text-align: center;
-
-      margin-top: 20px;
-
-      margin-bottom: 0;
-    }
-
-    .score-panel {
-
-      width: 100%;
-
-      max-width: 900px;
-
-      margin-top: 20px;
-
-      background: white;
-
-      padding: 20px;
-
-      border-radius: 24px;
-
-      box-shadow:
-        0 4px 20px rgba(0,0,0,0.1);
-    }
-
-    .score-header {
-
-      display: flex;
-
-      justify-content: space-between;
-
-      align-items: center;
-
-      gap: 12px;
-
-      flex-wrap: wrap;
-
-      margin-bottom: 20px;
-    }
-
-    .reset-btn {
-
-      padding: 10px 20px;
-
-      border: none;
-
-      border-radius: 12px;
-
-      background: #ef4444;
-
-      color: white;
-
-      cursor: pointer;
-
-      font-size: 16px;
-    }
-
-    .throw-list {
-
-      display: grid;
-
-      grid-template-columns:
-        repeat(auto-fit, minmax(220px, 1fr));
-
-      gap: 12px;
-    }
-
-    .throw-card {
-
-      background: #f3f4f6;
-
-      padding: 14px;
-
-      border-radius: 14px;
-    }
-
-    button:hover {
-      opacity: 0.9;
-    }
-
-    @media (max-width: 600px) {
-
-      .board-card,
-      .score-panel {
-
-        padding: 16px;
-
-        border-radius: 18px;
-      }
-
-      .board-title {
-        font-size: 28px;
-      }
-
-      .last-hit {
-        font-size: 22px;
-      }
-    }
-
   </style>
 </head>
-
 <body>
-
-  <div id="root"></div>
-
-  <script type="text/babel">
-
-    const {
-      useState,
-      useRef
-    } = React;
-
-    function DartboardScoreCalculator() {
-
-      // Standard dartboard sequence
-      const numbers = [
-        20, 1, 18, 4, 13,
-        6, 10, 15, 2, 17,
-        3, 19, 7, 16, 8,
-        11, 14, 9, 12, 5
-      ];
-
-      const [throws, setThrows] =
-        useState([]);
-
-      const [lastHit, setLastHit] =
-        useState(
-          "Tap the dartboard to score"
-        );
-
-      const imgRef = useRef(null);
-
-      // Total score
-      const totalScore =
-        throws.reduce(
-          (sum, t) => sum + t.score,
-          0
-        );
-
-      const handleBoardTouch = (event) => {
-
-        event.preventDefault();
-
-        const img = imgRef.current;
-
-        if (!img) return;
-
-        const rect =
-          img.getBoundingClientRect();
-
-        // Pointer position
-        const point = event;
-
-        // Position INSIDE displayed image
-        const displayX =
-          point.clientX - rect.left;
-
-        const displayY =
-          point.clientY - rect.top;
-
-        // Convert displayed coordinates
-        // back to ORIGINAL IMAGE coordinates
-
-        const x =
-          (displayX / rect.width) *
-          img.naturalWidth;
-
-        const y =
-          (displayY / rect.height) *
-          img.naturalHeight;
-
-        // Original image size
-        const boardSize =
-          img.naturalWidth;
-
-        const center =
-          boardSize / 2;
-
-        const scaleFactor = 563/boardSize;  
-
-        // Calibrated radii
-        const radii = {
-
-          bullInner: 8 * scaleFactor,
-
-          bullOuter: 21 * scaleFactor,
-
-          tripleInner: 121 * scaleFactor,
-
-          tripleOuter: 134 * scaleFactor,
-
-          doubleInner: 201 * scaleFactor,
-
-          doubleOuter: 214 * scaleFactor,
-
-          outer: 214 * scaleFactor
-        };
-
-        // Relative coordinates
-        const dx = x - center;
-
-        const dy = center - y;
-
-        // Distance from center
-        const distance = Math.sqrt(
-          dx * dx + dy * dy
-        );
-
-        // Outside board
-        if (distance > radii.outer) {
-
-          setLastHit(
-            "Missed board"
-          );
-
-          return;
-        }
-
-        // Angle
-        let angle =
-          Math.atan2(dx, dy) *
-          (180 / Math.PI);
-
-        if (angle < 0) {
-          angle += 360;
-        }
-
-        // Shift by half segment
-        angle = (angle + 9) % 360;
-
-        const segmentIndex =
-          Math.floor(angle / 18);
-
-        const baseValue =
-          numbers[segmentIndex];
-
-        let multiplier = 1;
-
-        let score = baseValue;
-
-        let label = `${baseValue}`;
-
-        // Bullseye
-        if (
-          distance <= radii.bullInner
-        ) {
-
-          score = 50;
-
-          label =
-            "Bullseye (50)";
-        }
-
-        // Outer bull
-        else if (
-          distance <= radii.bullOuter
-        ) {
-
-          score = 25;
-
-          label =
-            "Outer Bull (25)";
-        }
-
-        else {
-
-          // Triple ring
-          if (
-            distance >=
-              radii.tripleInner &&
-            distance <=
-              radii.tripleOuter
-          ) {
-
-            multiplier = 3;
-          }
-
-          // Double ring
-          if (
-            distance >=
-              radii.doubleInner &&
-            distance <=
-              radii.doubleOuter
-          ) {
-
-            multiplier = 2;
-          }
-
-          score =
-            baseValue * multiplier;
-
-          if (multiplier === 2) {
-
-            label =
-              `Double ${baseValue} (${score})`;
-          }
-
-          if (multiplier === 3) {
-
-            label =
-              `Triple ${baseValue} (${score})`;
-          }
-        }
-
-        const throwData = {
-
-          score,
-
-          label,
-
-          timestamp: Date.now()
-        };
-
-        // Keep latest 10 throws
-        setThrows(prev =>
-          [throwData, ...prev]
-            .slice(0, 10)
-        );
-
-        setLastHit(label);
-      };
-
-      return (
-
-        <div className="app">
-
-          {/* Dartboard */}
-          <div className="board-card">
-
-            <h1 className="board-title">
-              Dartboard Score Calculator
-            </h1>
-
-            <div className="board-wrapper">
-
-              <img
-                ref={imgRef}
-
-                src="pngegg.png"
-
-                alt="dartboard"
-
-                className="dartboard"
-
-                draggable="false"
-
-                onPointerDown={
-                  handleBoardTouch
-                }
-              />
-
-            </div>
-
-            <h2 className="last-hit">
-              {lastHit}
-            </h2>
-
+<div id="root"></div>
+
+<script type="text/babel">
+const {useState, useRef, useEffect, useMemo} = React;
+
+const NUMBERS = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+const ROBOT_AVGS = [40,50,60,70,80,90,100];
+const STORAGE_KEY = "dartApp_v3";
+
+function loadStore() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {users:{}, matches:[]}; }
+  catch { return {users:{}, matches:[]}; }
+}
+function saveStore(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+function weightedNormal(mean, sd) {
+  let u=0,v=0;
+  while(!u) u=Math.random();
+  while(!v) v=Math.random();
+  return mean + sd*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function formatPct(n) { return `${(n*100).toFixed(1)}%`; }
+
+function App() {
+  const [setup, setSetup] = useState(true);
+  const [game, setGame] = useState(null);
+  const [modal, setModal] = useState(null);
+  const [store, setStore] = useState(loadStore());
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  const [gameType, setGameType] = useState("501");
+  const [playerCount, setPlayerCount] = useState("2");
+  const [firstTo, setFirstTo] = useState(3);
+  const [names, setNames] = useState(["Player 1","Player 2"]);
+  const [robot, setRobot] = useState(false);
+  const [robotAvg, setRobotAvg] = useState(70);
+
+  const startGame = () => {
+    const count = robot ? 2 : Number(playerCount);
+    const ps = Array.from({length:count}, (_,i) => ({
+      id:i,
+      name: names[i] || `Player ${i+1}`,
+      score:Number(gameType),
+      legs:0,
+      darts:[],
+      segmentPoints:[], scores180:0, scores140:0, scores100:0, scores60:0,
+      highestScore:0, highestCheckout:0,
+      turns:[],
+      segmentHits:{},
+      checkoutAttempts:0,
+      checkouts:0,
+      busts:0
+    }));
+    if (robot) ps[1].name = "Robot";
+    setGame({
+      type:Number(gameType), firstTo:Number(firstTo), players:ps,
+      current:0, legNumber:1, legDartCount:0, legStartDarts:{}, startedAt:Date.now()
+    });
+    setSetup(false);
+  };
+
+  const finishMatch = (finalGame) => {
+    const winner = finalGame.players.find(p => p.legs >= finalGame.firstTo);
+    const summary = {
+      id:Date.now(), date:new Date().toISOString(), type:finalGame.type,
+      firstTo:finalGame.firstTo, winner:winner ? winner.name : "",
+      players:finalGame.players.map(p => ({
+        name:p.name, legs:p.legs, darts:p.darts, turns:p.turns,
+        segmentHits:p.segmentHits, segmentPoints:p.segmentPoints, checkoutAttempts:p.checkoutAttempts,
+        checkouts:p.checkouts, busts:p.busts, scores180:p.scores180||0, scores140:p.scores140||0,
+        scores100:p.scores100||0, scores60:p.scores60||0, highestScore:p.highestScore||0,
+        highestCheckout:p.highestCheckout||0
+      }))
+    };
+    const next = {...store, matches:[summary,...store.matches].slice(0,100)};
+    summary.players.forEach(p => {
+      const key=p.name.trim() || "Unnamed";
+      next.users[key] = {name:key, games:(next.users[key]?.games||0)+1, lastPlayed:summary.date};
+    });
+    saveStore(next); setStore(next);
+    setGame(null); setSetup(true); setModal(summary);
+  };
+
+  const registerTurn = (playerIndex, turnDarts, newScore, busted, checkout) => {
+    setGame(prev => {
+      if (!prev) return prev;
+      const players=prev.players.map((p,i)=>i===playerIndex ? {...p}:p);
+      const p=players[playerIndex];
+      p.darts.push(...turnDarts);
+      p.turns.push({darts:turnDarts.map(d=>d.score), score:busted?0:turnDarts.reduce((a,d)=>a+d.score,0), busted, checkout});
+      p.busts += busted ? 1 : 0;
+      turnDarts.forEach(d => {
+        const k=d.base;
+        p.segmentHits[k]=(p.segmentHits[k]||0)+1;
+        p.segmentPoints=(p.segmentPoints||[]);
+        p.segmentPoints.push({base:d.base, score:d.score, multiplier:d.multiplier||1});
+      });
+      const turnTotal = busted ? 0 : turnDarts.reduce((a,d)=>a+d.score,0);
+      if (turnTotal===180) p.scores180=(p.scores180||0)+1;
+      if (turnTotal>=140) p.scores140=(p.scores140||0)+1;
+      if (turnTotal>=100) p.scores100=(p.scores100||0)+1;
+      if (turnTotal>=60) p.scores60=(p.scores60||0)+1;
+      p.highestScore=Math.max(p.highestScore||0,turnTotal);
+      if (checkout) { p.checkouts++; p.highestCheckout=Math.max(p.highestCheckout||0,currentScore); }
+      if (currentScore<=170 && currentScore>1 && !busted) p.checkoutAttempts++;
+
+      if (!busted) p.score=newScore;
+      const won = checkout && newScore===0;
+      if (!won) {
+        const nextCurrent = playerIndex+1 >= players.length ? 0 : playerIndex+1;
+        return {...prev, players, current:nextCurrent, legDartCount:0};
+      }
+
+      p.legs++;
+      const matchDone=p.legs>=prev.firstTo;
+      if (matchDone) {
+        const ng={...prev,players};
+        setTimeout(()=>finishMatch(ng),0);
+        return ng;
+      }
+
+      const resetPlayers=players.map(x=>({...x,score:prev.type}));
+      return {...prev,players:resetPlayers,current:playerIndex===players.length-1?0:playerIndex+1,legNumber:prev.legNumber+1,legDartCount:0};
+    });
+  };
+
+  return (
+    <>
+      <div className="app">
+        <div className="topbar">
+          <div className="brand">🎯 Dartboard Score Calculator</div>
+          <div style={{display:"flex",gap:8}}>
+            {game && <button className="btn light" onClick={()=>{setGame(null);setSetup(true)}}>End Match</button>}
+            <button className="btn" onClick={()=>setHistoryOpen(true)}>History</button>
           </div>
-
-          {/* Score panel */}
-          <div className="score-panel">
-
-            <div className="score-header">
-
-              <h2>
-                Total Score:
-                {" "}
-                {totalScore}
-              </h2>
-
-              <button
-                className="reset-btn"
-
-                onClick={() => {
-
-                  setThrows([]);
-
-                  setLastHit(
-                    "Tap the dartboard to score"
-                  );
-                }}
-              >
-                Reset
-              </button>
-
-            </div>
-
-            {throws.length === 0 && (
-              <p>
-                No throws yet.
-              </p>
-            )}
-
-            <div className="throw-list">
-
-              {throws.map((t) => (
-
-                <div
-                  key={t.timestamp}
-                  className="throw-card"
-                >
-
-                  <strong>
-                    {t.label}
-                  </strong>
-
-                  <div>
-                    Score:
-                    {" "}
-                    {t.score}
-                  </div>
-
-                </div>
-
-              ))}
-
-            </div>
-
-          </div>
-
         </div>
-      );
+
+        {setup && (
+          <div className="setup">
+            <h2 style={{marginTop:0}}>New Match</h2>
+            <div className="setup-grid">
+              <div className="field"><label>Game</label><select value={gameType} onChange={e=>setGameType(e.target.value)}><option value="301">301</option><option value="501">501</option></select></div>
+              <div className="field"><label>Players</label><select value={robot?"2":playerCount} disabled={robot} onChange={e=>setPlayerCount(e.target.value)}><option value="1">1</option><option value="2">2</option></select></div>
+              <div className="field"><label>First to</label><select value={firstTo} onChange={e=>setFirstTo(e.target.value)}>{[1,2,3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n} leg{n>1?"s":""}</option>)}</select></div>
+              <div className="field"><label>Opponent</label><select value={robot?"robot":"human"} onChange={e=>setRobot(e.target.value==="robot")}><option value="human">Human player</option><option value="robot">Robot</option></select></div>
+              {robot && <div className="field"><label>Robot average</label><select value={robotAvg} onChange={e=>setRobotAvg(Number(e.target.value))}>{ROBOT_AVGS.map(a=><option key={a} value={a}>{a}</option>)}</select></div>}
+            </div>
+
+            <div className="player-fields" style={{marginTop:12}}>
+              <div className="field"><label>Player 1 name</label><input value={names[0]} onChange={e=>setNames([e.target.value,names[1]])} placeholder="Player 1" /></div>
+              {!robot && Number(playerCount)===2 && <div className="field"><label>Player 2 name</label><input value={names[1]} onChange={e=>setNames([names[0],e.target.value])} placeholder="Player 2" /></div>}
+            </div>
+
+            {robot && <div className="robot-note">Robot model: its scoring is centered around the selected 3-dart average and its checkout chance scales from <b>10%</b> at 40 average to <b>50%</b> at 100 average.</div>}
+            <div className="setup-actions">
+              <button className="btn primary" onClick={startGame}>Start Match</button>
+              {Object.keys(store.users).length>0 && <span style={{alignSelf:"center",fontSize:13,color:"#6b7280"}}>{Object.keys(store.users).length} saved player(s)</span>}
+            </div>
+          </div>
+        )}
+
+        {game && <Match game={game} registerTurn={registerTurn} robot={robot} robotAvg={robotAvg} />}
+      </div>
+
+      {modal && <StatsModal match={modal} onClose={()=>setModal(null)} />}
+      {historyOpen && <HistoryModal store={store} onClose={()=>setHistoryOpen(false)} />}
+    </>
+  );
+}
+
+function Match({game,registerTurn,robot,robotAvg}) {
+  const [throws,setThrows]=useState([]);
+  const [lastHit,setLastHit]=useState("Tap the dartboard to score");
+  const [turnDarts,setTurnDarts]=useState([]);
+  const imgRef=useRef(null);
+  const player=game.players[game.current];
+  const currentScore=player.score;
+
+  useEffect(()=>{
+    if (robot && game.current===1) {
+      const timer=setTimeout(()=>robotTurn(),450);
+      return ()=>clearTimeout(timer);
     }
+  },[game.current,game.legNumber,robot]);
 
-    const root =
-      ReactDOM.createRoot(
-        document.getElementById("root")
-      );
+  const scorePoint=(clientX,clientY)=>{
+    const img=imgRef.current;if(!img)return null;
+    const rect=img.getBoundingClientRect();
+    const displayX=clientX-rect.left, displayY=clientY-rect.top;
+    if(displayX<0||displayY<0||displayX>rect.width||displayY>rect.height)return null;
+    const x=(displayX/rect.width)*img.naturalWidth;
+    const y=(displayY/rect.height)*img.naturalHeight;
+    const boardSize=img.naturalWidth, center=boardSize/2, sf=563/boardSize;
+    const radii={bullInner:8*sf,bullOuter:21*sf,tripleInner:121*sf,tripleOuter:134*sf,doubleInner:201*sf,doubleOuter:214*sf,outer:214*sf};
+    const dx=x-center,dy=center-y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d>radii.outer)return {score:0,base:0,label:"Miss"};
+    let angle=Math.atan2(dx,dy)*180/Math.PI;if(angle<0)angle+=360;angle=(angle+9)%360;
+    const base=NUMBERS[Math.floor(angle/18)];
+    if(d<=radii.bullInner)return {score:50,base:25,label:"Bullseye (50)"};
+    if(d<=radii.bullOuter)return {score:25,base:25,label:"Outer Bull (25)"};
+    let mult=1;if(d>=radii.tripleInner&&d<=radii.tripleOuter)mult=3;if(d>=radii.doubleInner&&d<=radii.doubleOuter)mult=2;
+    const score=base*mult;
+    return {score,base,label:mult===3?`Triple ${base} (${score})`:mult===2?`Double ${base} (${score})`:`${base} (${score})`};
+  };
 
-    root.render(
-      <DartboardScoreCalculator />
-    );
+  const addDart=(d)=>{
+    if(!d)return;
+    const next=[...turnDarts,d];
+    const raw=next.reduce((a,x)=>a+x.score,0);
+    const remaining=currentScore-raw;
+    const checkout=d.score===50 || (d.score%2===0 && d.score>0 && d.label.startsWith("Double"));
+    const threeDarts=next.length===3;
+    let bust=false, finish=false;
+    if(remaining<0 || remaining===1 || (remaining===0&&!checkout)) bust=true;
+    if(remaining===0&&checkout) finish=true;
 
-  </script>
+    setLastHit(bust ? `BUST — ${raw} scored 0` : d.label);
+    setThrows(prev=>[{...d,id:Date.now()+Math.random()},...prev].slice(0,9));
 
+    if(bust || finish || threeDarts) {
+      registerTurn(game.current,next,bust?currentScore:remaining,bust,finish);
+      setTurnDarts([]);
+    } else setTurnDarts(next);
+  };
+
+  const onPointerDown=e=>{
+    e.preventDefault();
+    if(e.pointerType==="mouse" && e.button!==0)return;
+    const d=scorePoint(e.clientX,e.clientY);
+    addDart(d);
+  };
+
+  const robotTurn=()=>{
+    let darts=[], remaining=player.score;
+    const targetAvg=robotAvg;
+    for(let i=0;i<3;i++){
+      if(remaining<=170 && Math.random() < (0.10+(targetAvg-40)/60*0.40)) {
+        const checkout=robotCheckout(remaining);
+        if(checkout){ darts.push(checkout); remaining=0; break; }
+      }
+      const target=Math.max(0,Math.round(weightedNormal(targetAvg/3, targetAvg*.16)));
+      const d=robotScoringDart(target);
+      darts.push(d);
+      remaining-=d.score;
+      if(remaining<0 || remaining===1){ remaining=player.score; break; }
+    }
+    const raw=darts.reduce((a,d)=>a+d.score,0);
+    const busted=remaining===player.score && raw>0;
+    setLastHit(busted?`Robot busts — ${raw}`:`Robot scored ${raw}`);
+    setThrows(prev=>darts.map((d,i)=>({...d,id:Date.now()+i})).concat(prev).slice(0,9));
+    setTimeout(()=>registerTurn(1,darts,busted?player.score:remaining,busted,remaining===0),250);
+  };
+
+  return <div className="board-card">
+    <div className="match-head">
+      <h1>{game.type} • First to {game.firstTo}</h1>
+      <div className="turn-info">Leg {game.legNumber}<br/><span style={{color:"#2563eb"}}>{player.name}'s turn</span></div>
+    </div>
+    <div className="dartboard-wrap">
+      <img ref={imgRef} src="pngegg.png" alt="dartboard" className="dartboard" draggable="false" onPointerDown={onPointerDown}/>
+    </div>
+    <div className="last-hit">{lastHit}</div>
+    <div className="players">
+      {game.players.map((p,i)=><div key={p.id} className={"player-card "+(i===game.current?"active":"")}>
+        <div className="player-name">{p.name}{robot&&i===1?" 🤖":""}</div>
+        <div className="player-score">{p.score}</div>
+        <div className="player-meta">Legs won: {p.legs} • Darts: {p.darts.length} • Avg: {average(p.darts).toFixed(1)}</div>
+      </div>)}
+    </div>
+    <div className="score-panel">
+      <div className="score-header">
+        <h2>Current turn: {turnDarts.map((d,i)=><span key={i}>{d.score}{i<turnDarts.length-1?" + ":""}</span>)} {turnDarts.length?` = ${turnDarts.reduce((a,d)=>a+d.score,0)}`:""}</h2>
+        <button className="btn red" onClick={()=>window.location.reload()}>Reset</button>
+      </div>
+      <div className="throw-list">
+        {throws.length===0?<p className="empty">No darts in the current display yet.</p>:throws.map(t=><div className="throw-card" key={t.id}><strong>{t.label}</strong><div>Score: {t.score}</div></div>)}
+      </div>
+    </div>
+  </div>;
+}
+
+function average(darts) {
+  if(!darts.length)return 0;
+  return darts.reduce((s,d)=>s+d.score,0)/(darts.length/3);
+}
+function firstNine(darts) {
+  if(!darts.length)return 0;
+  const d=darts.slice(0,9);
+  return d.reduce((s,x)=>s+x.score,0)/(d.length/3);
+}
+function robotScoringDart(target) {
+  if(target>=45 && Math.random()<.20) { const n=NUMBERS[Math.floor(Math.random()*20)]; return {score:n*2,base:n,label:`Double ${n} (${n*2})`}; }
+  if(target>=35 && Math.random()<.30) { const n=NUMBERS[Math.floor(Math.random()*20)]; return {score:n*3,base:n,label:`Triple ${n} (${n*3})`}; }
+  const n=Math.max(1,Math.min(20,Math.round(target)));
+  return {score:n,base:n,label:`${n} (${n})`};
+}
+function robotCheckout(rem) {
+  if(rem===50)return {score:50,base:25,label:"Bullseye (50)"};
+  if(rem>1 && rem%2===0 && rem/2<=20){const n=rem/2;return {score:rem,base:n,label:`Double ${n} (${rem})`};}
+  for(let n=20;n>=1;n--) for(let t=1;t<=3;t++) {
+    const s=n*t, left=rem-s;
+    if(left===50)return {score:s,base:n,label:`${t===3?"Triple ":t===2?"Double ":""}${n} (${s})`};
+    if(left>1&&left%2===0&&left/2<=20)return {score:s,base:n,label:`${t===3?"Triple ":t===2?"Double ":""}${n} (${s})`};
+  }
+  return null;
+}
+
+function StatsModal({match,onClose}) {
+  return <div className="modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="modal">
+      <div className="modal-head"><h2>🏆 Match Statistics</h2><button className="btn light" onClick={onClose}>Close</button></div>
+      <p><b>{match.type}</b> • First to {match.firstTo} • Winner: <b>{match.winner}</b></p>
+      {match.players.map((p,i)=><div key={i} style={{marginBottom:24}}>
+        <h3>{p.name} {p.legs?"— "+p.legs+" legs":""}</h3>
+        <div className="stats-grid">
+          <div className="stat">3-dart average<b>{average(p.darts).toFixed(2)}</b></div>
+          <div className="stat">First 9 average<b>{firstNine(p.darts).toFixed(2)}</b></div>
+          <div className="stat">Checkout %<b>{p.checkoutAttempts?formatPct(p.checkouts/p.checkoutAttempts):"—"}</b></div>
+          <div className="stat">Darts thrown<b>{p.darts.length}</b></div>
+          <div className="stat">180s<b>{p.scores180||0}</b></div>
+          <div className="stat">140+ visits<b>{p.scores140||0}</b></div>
+          <div className="stat">100+ visits<b>{p.scores100||0}</b></div>
+          <div className="stat">60+ visits<b>{p.scores60||0}</b></div>
+          <div className="stat">Highest score<b>{p.highestScore||0}</b></div>
+          <div className="stat">Highest checkout<b>{p.highestCheckout||0}</b></div>
+        </div>
+        <div className="heat-wrap">
+          <div className="heat-title"><h4 style={{marginBottom:0}}>Segment hit heatmap</h4><span style={{fontSize:12,color:"#6b7280"}}>hits: {Object.values(p.segmentHits).reduce((a,b)=>a+b,0)}</span></div>
+          <Heatmap hits={p.segmentHits}/>
+        </div>
+      </div>)}
+    </div>
+  </div>;
+}
+function heatColor(v,max) {
+  const a=max?Math.min(1,v/max):0;
+  return `hsl(${Math.round(120-120*a)} 85% ${Math.round(92-42*a)}%)`;
+}
+function Heatmap({hits}) {
+  const max=Math.max(1,...Object.values(hits));
+  return <div>
+    <div className="heatmap">
+      <div style={{position:"absolute",inset:"6%",borderRadius:"50%",background:"#111827",boxShadow:"inset 0 0 0 2px #fff, inset 0 0 0 28px #f3f4f6"}}></div>
+      {NUMBERS.map((n,i)=>{
+        const count=hits[n]||0, angle=i*18;
+        const r=40, rad=(angle-90)*Math.PI/180;
+        const x=50+r*Math.cos(rad), y=50+r*Math.sin(rad);
+        return <div key={n} style={{position:"absolute",left:`${x}%`,top:`${y}%`,transform:"translate(-50%,-50%)",width:42,height:42,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:14,background:heatColor(count,max),border:"2px solid #fff",boxShadow:"0 1px 4px rgba(0,0,0,.25)"}}>{n}<small style={{position:"absolute",marginTop:28,fontSize:9}}>{count}</small></div>
+      })}
+      <div style={{position:"absolute",left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:34,height:34,borderRadius:"50%",background:"#ef4444",border:"3px solid #fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900}}>BULL</div>
+    </div>
+    <div className="heat-legend">Darker/hotter segments = more hits. Number below each segment = hit count.</div>
+  </div>;
+}
+function HistoryModal({store,onClose}) {
+  return <div className="modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="modal">
+      <div className="modal-head"><h2>Saved Match History</h2><button className="btn light" onClick={onClose}>Close</button></div>
+      {store.matches.length===0?<p className="empty">No completed matches yet.</p>:store.matches.map(m=><div className="history-row" key={m.id}>
+        <div><b>{m.type} — first to {m.firstTo}</b><br/><span style={{fontSize:12,color:"#6b7280"}}>{new Date(m.date).toLocaleString()}</span></div>
+        <div style={{textAlign:"right"}}>Winner: <b>{m.winner}</b><br/><span style={{fontSize:12}}>{m.players.map(p=>`${p.name}: ${p.legs}`).join(" • ")}</span></div>
+      </div>)}
+    </div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
 </body>
 </html>
