@@ -49,6 +49,32 @@
     .score-header h2 { margin:0; }
     .throw-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-top:12px; }
     .throw-card { background:#f3f4f6; padding:12px; border-radius:12px; }
+    .turn-history { margin-top:10px; border-top:1px solid #d1d5db; padding-top:8px; }
+    .turn-history-title { font-size:12px; font-weight:800; text-transform:uppercase; color:#6b7280; margin-bottom:5px; }
+    .turn-item { display:flex; justify-content:space-between; gap:8px; padding:5px 0; font-size:12px; border-bottom:1px solid #e5e7eb; }
+    .turn-item:last-child { border-bottom:0; }
+    .turn-item b { text-align:right; }
+    .turn-item.current-turn { font-size:13px; }
+    .turn-empty { font-size:12px; color:#9ca3af; padding:3px 0; }
+    .turn-history { background:transparent; }
+    .turn-list { display:flex; flex-direction:column; gap:4px; }
+    .turn-line { display:grid; grid-template-columns:58px 1fr auto; align-items:center; gap:8px; padding:7px 9px; background:rgba(0,0,0,.035); border-radius:7px; font-size:13px; }
+    .turn-line .turn-no { color:#6b7280; font-weight:700; }
+    .turn-line .turn-darts { font-weight:700; }
+    .turn-line .turn-total { font-weight:900; min-width:42px; text-align:right; }
+    .turn-line.bust { background:rgba(220,38,38,.08); }
+    .turn-current { border:1px dashed #2563eb; background:rgba(37,99,235,.06); }
+    body.dark-mode .turn-line { background:rgba(255,255,255,.06); }
+    body.dark-mode .turn-line.bust { background:rgba(248,113,113,.12); }
+    body.dark-mode .turn-current { background:rgba(96,165,250,.12); }
+    .celebration { position:fixed; inset:0; z-index:50; pointer-events:none; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .celebration-title { position:relative; z-index:3; font-size:clamp(72px,16vw,190px); font-weight:1000; line-height:1; letter-spacing:-5px; text-shadow:0 6px 0 rgba(0,0,0,.18), 0 12px 30px rgba(0,0,0,.28); animation:celebrateTitle .8s cubic-bezier(.2,1.5,.3,1) both; }
+    .celebration-title.game-shot { font-size:clamp(48px,10vw,125px); letter-spacing:-2px; }
+    .confetti-piece { position:absolute; top:-30px; width:11px; height:20px; border-radius:2px; animation:confettiFall var(--duration) linear forwards; transform:rotate(var(--rotation)); }
+    .fish { position:absolute; font-size:clamp(28px,5vw,58px); top:var(--top); left:var(--left); animation:fishSwim var(--duration) ease-in-out forwards; }
+    @keyframes celebrateTitle { 0%{transform:scale(.35) rotate(-4deg);opacity:0} 65%{transform:scale(1.12) rotate(1deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:1} }
+    @keyframes confettiFall { 0%{top:-30px;opacity:1} 100%{top:110vh;opacity:.95;transform:translateX(var(--drift)) rotate(720deg)} }
+    @keyframes fishSwim { 0%{transform:translate(-20vw,0) rotate(-8deg);opacity:0} 12%{opacity:1} 50%{transform:translate(10vw,-8vh) rotate(8deg)} 100%{transform:translate(125vw,8vh) rotate(-5deg);opacity:0} }
     .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.62); display:flex; align-items:center; justify-content:center; padding:14px; z-index:20; }
     .modal { width:min(100%,1000px); max-height:92vh; overflow:auto; background:#fff; border-radius:20px; padding:20px; }
     .modal-head { display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:14px; }
@@ -77,6 +103,9 @@
     body.dark-mode .stat { background:#374151; color:#f3f4f6; }
     body.dark-mode .player-card.active { background:#1e3a5f; border-color:#60a5fa; }
     body.dark-mode .history-row { border-bottom-color:#4b5563; }
+    body.dark-mode .turn-history { border-top-color:#4b5563; }
+    body.dark-mode .turn-item { border-bottom-color:#4b5563; }
+    body.dark-mode .turn-history-title { color:#9ca3af; }
     body.dark-mode .btn.light { background:#374151; color:#f3f4f6; }
     body.dark-mode .robot-note { background:#4b3b14; color:#fef3c7; }
     .theme-toggle { display:flex; align-items:center; gap:7px; white-space:nowrap; }
@@ -199,7 +228,7 @@ function App() {
       const players=prev.players.map((p,i)=>i===playerIndex ? {...p}:p);
       const p=players[playerIndex];
       p.darts.push(...turnDarts);
-      p.turns.push({darts:turnDarts.map(d=>d.score), score:busted?0:turnDarts.reduce((a,d)=>a+d.score,0), busted, checkout});
+      p.turns.push({leg:prev.legNumber,darts:turnDarts.map(d=>d.score), score:busted?0:turnDarts.reduce((a,d)=>a+d.score,0), busted, checkout});
       p.busts += busted ? 1 : 0;
       turnDarts.forEach(d => {
         const k=d.base;
@@ -294,7 +323,16 @@ function Match({game,registerTurn,robot,robotAvg}) {
   const [turnDarts,setTurnDarts]=useState([]);
   const imgRef=useRef(null);
   const robotRunning=useRef(false);
+  const [celebration,setCelebration]=useState(null);
+  const celebrationTimer=useRef(null);
   const player=game.players[game.current];
+
+  const celebrate=(type)=>{
+    if(celebrationTimer.current) clearTimeout(celebrationTimer.current);
+    setCelebration(type);
+    celebrationTimer.current=setTimeout(()=>setCelebration(null),4200);
+  };
+  useEffect(()=>()=>{ if(celebrationTimer.current) clearTimeout(celebrationTimer.current); },[]);
   const currentScore=player.score;
   const isRobotTurn=robot && game.current===1;
 
@@ -339,6 +377,9 @@ function Match({game,registerTurn,robot,robotAvg}) {
 
     setLastHit(bust ? `BUST — ${raw} scored 0` : d.label);
     setThrows(prev=>[{...d,id:Date.now()+Math.random()},...prev].slice(0,9));
+
+    if(threeDarts && !bust && raw===180) celebrate("180");
+    if(finish) celebrate(raw===170 ? "fish" : "checkout");
 
     if(bust || finish || threeDarts) {
       registerTurn(game.current,next,bust?currentScore:remaining,bust,finish);
@@ -386,12 +427,26 @@ function Match({game,registerTurn,robot,robotAvg}) {
     });
 
     setTimeout(()=>{
+      if(!busted && raw===180) celebrate("180");
+      if(checkout) celebrate(raw===170 ? "fish" : "checkout");
       registerTurn(1,darts,finalScore,busted,checkout);
       robotRunning.current=false;
-    },Math.max(0,darts.length-1)*5000+300);
+    },Math.max(0,darts.length-1)*2000+300);
   };
 
-  return <div className="board-card">
+  const celebrationPieces=Array.from({length:70},(_,i)=>({
+    left:Math.random()*100, drift:(Math.random()*40-20)+"vw", duration:(2.2+Math.random()*1.8)+"s", rotation:(Math.random()*360)+"deg", delay:(Math.random()*.25)+"s"
+  }));
+  const fishPieces=Array.from({length:18},(_,i)=>({top:(10+Math.random()*75)+"%",left:(-10+Math.random()*25)+"%",duration:(2.5+Math.random()*1.4)+"s"}));
+
+  return <>
+    {celebration && <div className="celebration">
+      {celebration==="fish" ? fishPieces.map((f,i)=><span key={i} className="fish" style={{"--top":f.top,"--left":f.left,"--duration":f.duration}}>{i%3===0?"🐟":i%3===1?"🐠":"🐡"}</span>) : celebrationPieces.map((c,i)=><span key={i} className="confetti-piece" style={{left:c.left+"%","--drift":c.drift,"--duration":c.duration,"--rotation":c.rotation,"animationDelay":c.delay,background:`hsl(${(i*47)%360} 85% 55%)`}} />)}
+      <div className={"celebration-title "+(celebration==="checkout"?"game-shot":"")}>
+        {celebration==="180" ? "180" : "Game shot!"}
+      </div>
+    </div>}
+    <div className="board-card">
     <div className="match-head">
       <h1>{game.type} • First to {game.firstTo}</h1>
       <div className="turn-info">Leg {game.legNumber}<br/><span style={{color:"#2563eb"}}>{player.name}'s turn{isRobotTurn?" 🤖":""}</span></div>
@@ -402,16 +457,42 @@ function Match({game,registerTurn,robot,robotAvg}) {
     </div>
     <div className="last-hit">{lastHit}</div>
     <div className="players">
-      {game.players.map((p,i)=><div key={p.id} className={"player-card "+(i===game.current?"active":"")}>
-        <div className="player-name">{p.name}{robot&&i===1?" 🤖":""}</div>
-        <div className="player-score">{p.score}</div>
-        <div className="player-meta">Legs won: {p.legs} • Darts: {p.darts.length} • Avg: {average(p.darts).toFixed(1)}</div>
-      </div>)}
+      {game.players.map((p,i)=>{
+        const recentTurns=(p.turns||[]).filter(t=>t.leg===game.legNumber);
+        const isCurrent=i===game.current;
+        return <div key={p.id} className={"player-card "+(isCurrent?"active":"")}>
+          <div className="player-name">{p.name}{robot&&i===1?" 🤖":""}</div>
+          <div className="player-score">{p.score}</div>
+          <div className="player-meta">Legs won: {p.legs} • Darts: {p.darts.length} • Avg: {average(p.darts).toFixed(1)}</div>
+          <div className="turn-history">
+            <div className="turn-history-title">This leg — turn scores</div>
+            <div className="turn-list">
+              {recentTurns.map((t,idx)=><div className={"turn-line "+(t.busted?"bust":"")} key={idx}>
+                <span className="turn-no">Turn {idx+1}</span>
+                <span className="turn-darts">{t.busted ? "BUST" : (t.darts||[]).join(" + ")}</span>
+                <span className="turn-total">{t.busted ? 0 : t.score}</span>
+              </div>)}
+              {isCurrent && turnDarts.length>0 && <div className="turn-line turn-current">
+                <span className="turn-no">Current</span>
+                <span className="turn-darts">{turnDarts.map(d=>d.score).join(" + ")}</span>
+                <span className="turn-total">{turnDarts.reduce((a,d)=>a+d.score,0)}</span>
+              </div>}
+              {recentTurns.length===0 && !(isCurrent&&turnDarts.length) && <div className="turn-empty">No turns yet</div>}
+            </div>
+          </div>
+        </div>;
+      })}
     </div>
     <div className="score-panel">
       <div className="score-header">
-        <h2>Current turn: {turnDarts.map((d,i)=><span key={i}>{d.score}{i<turnDarts.length-1?" + ":""}</span>)} {turnDarts.length?` = ${turnDarts.reduce((a,d)=>a+d.score,0)}`:""}</h2>
-        <button className="btn red" onClick={()=>window.location.reload()}>Reset</button>
+        <h2>Current turn: {turnDarts.map((d,i)=><span key={i}>{d.score}{i<turnDarts.length-1?" + ":"}</span>)} {turnDarts.length?` = ${turnDarts.reduce((a,d)=>a+d.score,0)}`:""}</h2>
+        <button className="btn red" onClick={()=>{
+          if(isRobotTurn || turnDarts.length===0) return;
+          const count=turnDarts.length;
+          setTurnDarts([]);
+          setThrows(prev=>prev.slice(count));
+          setLastHit("Current turn cleared — re-enter the darts");
+        }} disabled={isRobotTurn || turnDarts.length===0}>Reset current turn</button>
       </div>
       <div className="throw-list">
         {throws.length===0?<p className="empty">No darts in the current display yet.</p>:throws.map(t=><div className="throw-card" key={t.id}><strong>{t.label}</strong><div>Score: {t.score}</div></div>)}
