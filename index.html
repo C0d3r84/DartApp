@@ -32,11 +32,19 @@
     .field input, .field select { width:100%; padding:11px 12px; border:1px solid #d1d5db; border-radius:10px; background:#fff; }
     .player-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
     .mode-note { margin:10px 0 0; font-size:13px; color:#6b7280; }
-    .board-card { padding:18px; display:flex; flex-direction:column; align-items:center; }
+    .board-card { padding:14px; display:flex; flex-direction:column; align-items:stretch; }
+    .game-layout { width:100%; display:grid; grid-template-columns:minmax(0,1fr) minmax(320px,390px); gap:14px; align-items:stretch; }
+    .board-main { min-width:0; display:flex; flex-direction:column; align-items:center; }
+    .turn-scores-panel { min-width:0; display:flex; flex-direction:column; background:#f8fafc; border-radius:14px; padding:12px; overflow:hidden; }
+    .turn-scores-title { font-size:13px; font-weight:900; text-transform:uppercase; color:#6b7280; margin-bottom:8px; }
+    .turn-scores-scroll { flex:1; min-height:0; max-height:calc(100vh - 145px); overflow-y:auto; overscroll-behavior:contain; padding-right:3px; scrollbar-width:thin; }
+    .turn-scores-scroll .player-card { margin-bottom:10px; }
+    .turn-scores-scroll .player-card:last-child { margin-bottom:0; }
+    .turn-history { margin-top:10px; border-top:1px solid #d1d5db; padding-top:8px; }
     .match-head { width:100%; display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
     .match-head h1 { margin:0; font-size:25px; }
     .turn-info { text-align:right; font-weight:800; }
-    .dartboard-wrap { width:min(92vw,700px); aspect-ratio:1; position:relative; }
+    .dartboard-wrap { width:min(62vh,700px); max-width:100%; aspect-ratio:1; position:relative; }
     .dartboard { width:100%; height:100%; object-fit:contain; display:block; border-radius:50%; user-select:none; -webkit-user-select:none; -webkit-user-drag:none; touch-action:none; cursor:crosshair; }
     .last-hit { min-height:30px; text-align:center; margin:12px 0 0; font-size:22px; }
     .players { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
@@ -48,7 +56,6 @@
     .score-panel { padding:18px; margin-top:14px; }
     .score-header { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
     .score-header h2 { margin:0; }
-    .turn-history { margin-top:10px; border-top:1px solid #d1d5db; padding-top:8px; }
     .turn-history-title { font-size:12px; font-weight:800; text-transform:uppercase; color:#6b7280; margin-bottom:6px; }
     .turn-list { display:flex; flex-direction:column; gap:4px; }
     .turn-line { display:grid; grid-template-columns:58px minmax(0,1fr) auto; align-items:center; gap:8px; padding:7px 9px; background:rgba(0,0,0,.035); border-radius:7px; font-size:13px; }
@@ -83,6 +90,7 @@
     body.dark-mode .setup,
     body.dark-mode .board-card,
     body.dark-mode .score-panel,
+    body.dark-mode .turn-scores-panel,
     body.dark-mode .modal { background:#1f2937; color:#f3f4f6; box-shadow:0 4px 20px rgba(0,0,0,.35); }
     body.dark-mode .field label,
     body.dark-mode .mode-note,
@@ -90,6 +98,7 @@
     body.dark-mode .empty { color:#9ca3af; }
     body.dark-mode .field input,
     body.dark-mode .field select { background:#111827; color:#f3f4f6; border-color:#4b5563; }
+    body.dark-mode .turn-scores-panel { background:#111827; }
     body.dark-mode .player-card,
     body.dark-mode .stat { background:#374151; color:#f3f4f6; }
     body.dark-mode .player-card.active { background:#1e3a5f; border-color:#60a5fa; }
@@ -111,16 +120,35 @@
     .theme-toggle { display:flex; align-items:center; gap:7px; white-space:nowrap; }
     .saved-count { color:#6b7280; }
     body.dark-mode .saved-count { color:#9ca3af; }
+    @media (max-width:900px) {
+      .game-layout { grid-template-columns:minmax(0,1fr) minmax(260px,34%); gap:10px; }
+      .dartboard-wrap { width:min(60vh,100%); }
+      .board-card { padding:10px; }
+      .turn-line { grid-template-columns:50px minmax(0,1fr) auto; padding:6px 7px; }
+      .player-score { font-size:32px; }
+    }
     @media (max-width:760px) {
       .setup-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
       .player-fields { grid-template-columns:1fr; }
-      .players { grid-template-columns:1fr; }
       .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
       .match-head h1 { font-size:20px; }
-      .dartboard-wrap { width:min(94vw,700px); }
-      .board-card { padding:12px; }
-      .score-panel { padding:12px; }
-      .turn-line { grid-template-columns:52px minmax(0,1fr) auto; }
+      .game-layout { grid-template-columns:minmax(0,1fr) minmax(220px,38%); gap:8px; }
+      .dartboard-wrap { width:min(58vh,100%); }
+      .board-card { padding:8px; }
+      .turn-scores-panel { padding:8px; }
+      .turn-line { grid-template-columns:44px minmax(0,1fr) auto; font-size:12px; }
+      .turn-line .turn-darts { font-size:12px; }
+      .player-card { padding:9px; }
+    }
+    @media (max-width:600px) {
+      .app { padding:6px; }
+      .game-layout { grid-template-columns:minmax(0,1fr) minmax(180px,42%); }
+      .dartboard-wrap { width:min(54vh,100%); }
+      .match-head h1 { font-size:17px; }
+      .turn-scores-title { font-size:11px; }
+      .player-name { font-size:14px; }
+      .player-score { font-size:27px; }
+      .player-meta { font-size:10px; }
     }
     @media (max-width:450px) {
       .app { padding:8px; }
@@ -514,6 +542,8 @@ function Match({game,registerTurn,editTurn,robot,robotAvg,onCelebrate}) {
 
   return <>
     <div className="board-card">
+    <div className="game-layout">
+      <div className="board-main">
     <div className="match-head">
       <h1>{game.type} • First to {game.firstTo}</h1>
       <div className="turn-info">Leg {game.legNumber}<br/><span style={{color:"#2563eb"}}>{player.name}'s turn{isRobotTurn?" 🤖":""}</span></div>
@@ -523,7 +553,26 @@ function Match({game,registerTurn,editTurn,robot,robotAvg,onCelebrate}) {
       <img ref={imgRef} src="pngegg.png" alt="dartboard" className="dartboard" draggable="false" onPointerDown={onPointerDown}/>
     </div>
     <div className="last-hit">{lastHit}</div>
-    <div className="players">
+    <div className="score-panel">
+      <div className="score-header">
+        <h2>Current turn: {turnDarts.map((d,i)=><span key={i}>{i>0 ? " + " : ""}{d.score}</span>)}{turnDarts.length ? ` = ${turnDarts.reduce((a,d)=>a+d.score,0)}` : ""}</h2>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button className="btn red" onClick={()=>{
+            if(isRobotTurn || turnDarts.length===0)return;
+            setTurnDarts([]);
+            setLastHit("Current turn cleared — re-enter the darts");
+          }} disabled={isRobotTurn || turnDarts.length===0}>Clear turn</button>
+          <button className="btn confirm" onClick={confirmTurn} disabled={isRobotTurn || turnDarts.length===0}>Confirm turn</button>
+        </div>
+      </div>
+      {turnDarts.length>0 && <div style={{marginTop:8,fontSize:13,opacity:.85}}>
+        {turnDarts.length===3 ? "Three darts entered. You can remove any dart to correct the score before confirming." : "Tap the board for the next dart, or confirm the turn."}
+      </div>}
+    </div>
+      </div>
+      <div className="turn-scores-panel">
+        <div className="turn-scores-title">Turn scores — this leg</div>
+        <div className="turn-scores-scroll">
       {game.players.map((p,i)=>{
         const recentTurns=(p.turns||[]).filter(t=>t.leg===game.legNumber);
         const isCurrent=i===game.current;
@@ -567,22 +616,9 @@ function Match({game,registerTurn,editTurn,robot,robotAvg,onCelebrate}) {
           </div>
         </div>;
       })}
-    </div>
-    <div className="score-panel">
-      <div className="score-header">
-        <h2>Current turn: {turnDarts.map((d,i)=><span key={i}>{i>0 ? " + " : ""}{d.score}</span>)}{turnDarts.length ? ` = ${turnDarts.reduce((a,d)=>a+d.score,0)}` : ""}</h2>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <button className="btn red" onClick={()=>{
-            if(isRobotTurn || turnDarts.length===0)return;
-            setTurnDarts([]);
-            setLastHit("Current turn cleared — re-enter the darts");
-          }} disabled={isRobotTurn || turnDarts.length===0}>Clear turn</button>
-          <button className="btn confirm" onClick={confirmTurn} disabled={isRobotTurn || turnDarts.length===0}>Confirm turn</button>
         </div>
       </div>
-      {turnDarts.length>0 && <div style={{marginTop:8,fontSize:13,opacity:.85}}>
-        {turnDarts.length===3 ? "Three darts entered. You can remove any dart to correct the score before confirming." : "Tap the board for the next dart, or confirm the turn."}
-      </div>}
+
     </div>
   </div>
   </>;
