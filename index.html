@@ -411,7 +411,7 @@ function Match({game,registerTurn,editTurn,robot,robotAvg,onCelebrate}) {
     const raw=darts.reduce((a,x)=>a+x.score,0);
     const remaining=currentScore-raw;
     const last=darts[darts.length-1];
-    const checkout=!!last && last.score>0 && last.score%2===0 && last.multiplier===2;
+    const checkout=!!last && ((last.score===50 && last.base===25) || (last.score>0 && last.score%2===0 && last.multiplier===2));
     const bust=remaining<0 || remaining===1 || (remaining===0&&!checkout);
     const finish=remaining===0&&checkout;
     return {raw,remaining,checkout,bust,finish};
@@ -494,7 +494,7 @@ function Match({game,registerTurn,editTurn,robot,robotAvg,onCelebrate}) {
 
     const raw=darts.reduce((a,d)=>a+d.score,0);
     const busted=remaining===player.score && raw>0;
-    const checkout=remaining===0 && darts.length>0 && darts[darts.length-1].multiplier===2;
+    const checkout=remaining===0 && darts.length>0 && ((darts[darts.length-1].score===50 && darts[darts.length-1].base===25) || darts[darts.length-1].multiplier===2);
     const finalScore=busted?player.score:remaining;
 
     // Reveal exactly one robot dart every 2 seconds.
@@ -604,14 +604,14 @@ function robotScoringDart(target) {
   return {score:n,base:n,multiplier:1,label:`${n} (${n})`};
 }
 function robotCheckout(rem) {
-  // Return a checkout route whose FINAL dart is always a double.
-  // We deliberately do not use the bull as the finishing dart.
+  // Return a checkout route whose FINAL dart is a double or bullseye (50).
   if(rem<=1 || rem>170)return null;
 
   const darts=[];
   const singleTargets=NUMBERS.map(n=>({score:n,base:n,multiplier:1,label:`${n} (${n})`}));
   const tripleTargets=NUMBERS.map(n=>({score:n*3,base:n,multiplier:3,label:`Triple ${n} (${n*3})`}));
   const doubleTargets=NUMBERS.map(n=>({score:n*2,base:n,multiplier:2,label:`Double ${n} (${n*2})`}));
+  doubleTargets.push({score:50,base:25,multiplier:1,label:"Bullseye (50)"});
   const normal=[...tripleTargets,...singleTargets];
 
   // One-dart finish.
