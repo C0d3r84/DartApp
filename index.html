@@ -380,30 +380,51 @@ function Match({game,registerTurn,robot,robotAvg,onCelebrate}) {
     return {score,base,multiplier:mult,label:mult===3?`Triple ${base} (${score})`:mult===2?`Double ${base} (${score})`:`${base} (${score})`};
   };
 
-  const addDart=(d)=>{
-    if(!d || isRobotTurn)return;
-    const next=[...turnDarts,d];
-    const raw=next.reduce((a,x)=>a+x.score,0);
+  const turnState=(darts)=>{
+    const raw=darts.reduce((a,x)=>a+x.score,0);
     const remaining=currentScore-raw;
-    const checkout=d.score===50 || (d.score%2===0 && d.score>0 && d.label.startsWith("Double"));
-    const threeDarts=next.length===3;
-    let bust=false, finish=false;
-    if(remaining<0 || remaining===1 || (remaining===0&&!checkout)) bust=true;
-    if(remaining===0&&checkout) finish=true;
+    const last=darts[darts.length-1];
+    const checkout=!!last && last.score>0 && last.score%2===0 && last.multiplier===2;
+    const bust=remaining<0 || remaining===1 || (remaining===0&&!checkout);
+    const finish=remaining===0&&checkout;
+    return {raw,remaining,checkout,bust,finish};
+  };
 
-    setLastHit(bust ? `BUST — ${raw} scored 0` : d.label);
-    if(threeDarts && !bust && raw===180) onCelebrate("180");
-    if(finish) onCelebrate(raw===170 ? "fish" : "checkout");
+  const addDart=(d)=>{
+    if(!d || isRobotTurn || turnDarts.length>=3)return;
+    const next=[...turnDarts,d];
+    const st=turnState(next);
+    setLastHit(st.bust ? `BUST — ${st.raw} scored 0` : d.label);
+    setTurnDarts(next);
+    if(st.bust) setLastHit(`BUST — ${st.raw} scored 0 (you can correct it before confirming)`);
+    else if(st.finish) setLastHit(`${d.label} — Game shot! Confirm turn or correct the darts`);
+    else if(next.length===3) setLastHit(st.raw===180 ? "180 — confirm turn or correct the darts" : "3 darts entered — confirm turn or correct the darts");
+  };
 
-    if(bust || finish || threeDarts) {
-      registerTurn(game.current,next,bust?currentScore:remaining,bust,finish);
-      setTurnDarts([]);
-    } else setTurnDarts(next);
+  const removeDart=(index)=>{
+    if(isRobotTurn)return;
+    const next=turnDarts.filter((_,i)=>i!==index);
+    setTurnDarts(next);
+    if(!next.length){ setLastHit("Turn cleared — re-enter the darts"); return; }
+    const st=turnState(next);
+    setLastHit(st.bust ? `BUST — ${st.raw} scored 0 (correct or remove a dart)` : st.finish ? `${next[next.length-1].label} — Game shot! Confirm turn or correct the darts` : `Corrected — ${st.raw} scored`);
+  };
+
+  const confirmTurn=()=>{
+    if(isRobotTurn || !turnDarts.length)return;
+    const st=turnState(turnDarts);
+    if(turnDarts.length<3 && !st.finish && !st.bust){
+      setLastHit("You can add another dart, or confirm this turn");
+    }
+    if(st.raw===180 && turnDarts.length===3 && !st.bust) onCelebrate("180");
+    if(st.finish) onCelebrate(st.raw===170 ? "fish" : "checkout");
+    registerTurn(game.current,turnDarts,st.bust?currentScore:st.remaining,st.bust,st.finish);
+    setTurnDarts([]);
   };
 
   const onPointerDown=e=>{
     e.preventDefault();
-    if(isRobotTurn)return;
+    if(isRobotTurn || turnDarts.length>=3)return;
     if(e.pointerType==="mouse" && e.button!==0)return;
     const d=scorePoint(e.clientX,e.clientY);
     addDart(d);
@@ -416,9 +437,13 @@ function Match({game,registerTurn,robot,robotAvg,onCelebrate}) {
     let darts=[], remaining=player.score;
     const targetAvg=robotAvg;
     for(let i=0;i<3;i++){
-      if(remaining<=170 && Math.random() < (0.10+(targetAvg-40)/60*0.40)) {
+      if(remaining>1 && remaining<=170 && Math.random() < (0.10+(targetAvg-40)/60*0.40)) {
         const checkout=robotCheckout(remaining);
-        if(checkout){ darts.push(checkout); remaining=0; break; }
+        if(checkout && checkout.length <= 3-i){
+          checkout.forEach(d=>{ darts.push(d); remaining-=d.score; });
+          remaining=0;
+          break;
+        }
       }
       const target=Math.max(1,Math.round(weightedNormal(targetAvg/3, targetAvg*.16)));
       const d=robotScoringDart(target);
@@ -427,9 +452,22 @@ function Match({game,registerTurn,robot,robotAvg,onCelebrate}) {
       if(remaining<0 || remaining===1){ remaining=player.score; break; }
     }
 
+    // If the robot is on a checkout route, the final dart must be a double.
+    // 170 is intentionally not checked out because it requires a bull; the robot leaves a finish instead.
+    if(remaining===0 && (!darts.length || darts[darts.length-1].multiplier!==2)) {
+      remaining=player.score;
+      darts=[];
+      for(let i=0;i<3;i++){
+        const target=Math.max(1,Math.round(weightedNormal(targetAvg/3, targetAvg*.16)));
+        const d=robotScoringDart(target);
+        darts.push(d); remaining-=d.score;
+        if(remaining<0 || remaining===1){ remaining=player.score; break; }
+      }
+    }
+
     const raw=darts.reduce((a,d)=>a+d.score,0);
     const busted=remaining===player.score && raw>0;
-    const checkout=remaining===0;
+    const checkout=remaining===0 && darts.length>0 && darts[darts.length-1].multiplier===2;
     const finalScore=busted?player.score:remaining;
 
     // Reveal exactly one robot dart every 2 seconds.
@@ -476,7 +514,7 @@ function Match({game,registerTurn,robot,robotAvg,onCelebrate}) {
               </div>)}
               {isCurrent && turnDarts.length>0 && <div className="turn-line turn-current">
                 <span className="turn-no">Current</span>
-                <span className="turn-darts">{turnDarts.map(d=>d.score).join(" + ")}</span>
+                <span className="turn-darts">{turnDarts.map((d,i)=><button key={i} className="btn light" style={{padding:"4px 7px",marginRight:4}} onClick={()=>removeDart(i)} title="Remove this dart to correct the score">{d.score} ×</button>)}</span>
                 <span className="turn-total">{turnDarts.reduce((a,d)=>a+d.score,0)}</span>
               </div>}
               {recentTurns.length===0 && !(isCurrent&&turnDarts.length) && <div className="turn-empty">No turns yet</div>}
@@ -488,14 +526,20 @@ function Match({game,registerTurn,robot,robotAvg,onCelebrate}) {
     <div className="score-panel">
       <div className="score-header">
         <h2>Current turn: {turnDarts.map((d,i)=><span key={i}>{i>0 ? " + " : ""}{d.score}</span>)}{turnDarts.length ? ` = ${turnDarts.reduce((a,d)=>a+d.score,0)}` : ""}</h2>
-        <button className="btn red" onClick={()=>{
-          if(isRobotTurn || turnDarts.length===0) return;
-          setTurnDarts([]);
-          setLastHit("Current turn cleared — re-enter the darts");
-        }} disabled={isRobotTurn || turnDarts.length===0}>Reset current turn</button>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button className="btn red" onClick={()=>{
+            if(isRobotTurn || turnDarts.length===0)return;
+            setTurnDarts([]);
+            setLastHit("Current turn cleared — re-enter the darts");
+          }} disabled={isRobotTurn || turnDarts.length===0}>Clear turn</button>
+          <button className="btn" onClick={confirmTurn} disabled={isRobotTurn || turnDarts.length===0}>Confirm turn</button>
+        </div>
       </div>
+      {turnDarts.length>0 && <div style={{marginTop:8,fontSize:13,opacity:.85}}>
+        {turnDarts.length===3 ? "Three darts entered. You can remove any dart to correct the score before confirming." : "Tap the board for the next dart, or confirm the turn."}
+      </div>}
     </div>
-  </div>;
+  </div>
   </>;
 }
 
@@ -515,12 +559,33 @@ function robotScoringDart(target) {
   return {score:n,base:n,multiplier:1,label:`${n} (${n})`};
 }
 function robotCheckout(rem) {
-  if(rem===50)return {score:50,base:25,multiplier:1,label:"Bullseye (50)"};
-  if(rem>1 && rem%2===0 && rem/2<=20){const n=rem/2;return {score:rem,base:n,multiplier:2,label:`Double ${n} (${rem})`};}
-  for(let n=20;n>=1;n--) for(let t=1;t<=3;t++) {
-    const s=n*t, left=rem-s;
-    if(left===50)return {score:s,base:n,multiplier:t,label:`${t===3?"Triple ":t===2?"Double ":""}${n} (${s})`};
-    if(left>1&&left%2===0&&left/2<=20)return {score:s,base:n,multiplier:t,label:`${t===3?"Triple ":t===2?"Double ":""}${n} (${s})`};
+  // Return a checkout route whose FINAL dart is always a double.
+  // We deliberately do not use the bull as the finishing dart.
+  if(rem<=1 || rem>170)return null;
+
+  const darts=[];
+  const singleTargets=NUMBERS.map(n=>({score:n,base:n,multiplier:1,label:`${n} (${n})`}));
+  const tripleTargets=NUMBERS.map(n=>({score:n*3,base:n,multiplier:3,label:`Triple ${n} (${n*3})`}));
+  const doubleTargets=NUMBERS.map(n=>({score:n*2,base:n,multiplier:2,label:`Double ${n} (${n*2})`}));
+  const normal=[...tripleTargets,...singleTargets];
+
+  // One-dart finish.
+  const one=doubleTargets.find(d=>d.score===rem);
+  if(one)return [one];
+
+  // Two-dart finish: first dart can be single or triple, second must be a double.
+  for(const a of normal){
+    const b=doubleTargets.find(d=>d.score===rem-a.score);
+    if(b)return [a,b];
+  }
+
+  // Three-dart finish: first two can be normal darts, final dart must be a double.
+  for(const a of normal){
+    for(const b of normal){
+      const left=rem-a.score-b.score;
+      const c=doubleTargets.find(d=>d.score===left);
+      if(c)return [a,b,c];
+    }
   }
   return null;
 }
