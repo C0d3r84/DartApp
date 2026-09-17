@@ -111,48 +111,6 @@
     .theme-toggle { display:flex; align-items:center; gap:7px; white-space:nowrap; }
     .saved-count { color:#6b7280; }
     body.dark-mode .saved-count { color:#9ca3af; }
-
-    /* Tablet portrait layout (e.g. iPad 10/11, 768x1024 and similar) */
-    @media (min-width:761px) and (max-width:1100px) and (orientation:portrait) {
-      .app { padding:12px; }
-      .topbar, .setup, .board-card, .score-panel { max-width:900px; }
-      .topbar { margin-bottom:8px; }
-      .brand { font-size:20px; }
-      .setup { padding:14px; margin-bottom:10px; }
-      .setup-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
-      .player-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .board-card { padding:12px; }
-      .match-head { margin-bottom:4px; }
-      .match-head h1 { font-size:22px; }
-      .turn-info { font-size:14px; }
-      /* Use viewport height so the complete scoring area fits on a portrait tablet. */
-      .dartboard-wrap { width:min(82vw,58vh,700px); }
-      .last-hit { margin:7px 0 0; font-size:20px; min-height:26px; }
-      .players { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:10px; }
-      .player-card { padding:10px; }
-      .player-name { font-size:16px; }
-      .player-score { font-size:34px; }
-      .player-meta { font-size:11px; }
-      .turn-history { margin-top:7px; padding-top:6px; }
-      .turn-line { padding:6px 8px; }
-      .score-panel { padding:12px; margin-top:10px; }
-      .score-header h2 { font-size:20px; }
-      .btn { min-height:42px; padding:9px 13px; }
-    }
-
-    /* Shorter portrait tablets: prioritize the board and keep controls compact. */
-    @media (min-width:761px) and (max-width:1100px) and (orientation:portrait) and (max-height:900px) {
-      .setup { padding:10px; }
-      .setup-grid { gap:7px; }
-      .field input, .field select { padding:8px 10px; }
-      .board-card { padding:8px; }
-      .dartboard-wrap { width:min(78vw,54vh,620px); }
-      .players { margin-top:7px; }
-      .player-card { padding:8px; }
-      .player-score { font-size:30px; }
-      .score-panel { padding:9px; margin-top:7px; }
-    }
-
     @media (max-width:760px) {
       .setup-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
       .player-fields { grid-template-columns:1fr; }
@@ -172,7 +130,9 @@
       .brand { font-size:18px; }
       .player-score { font-size:32px; }
     }
-  </style>
+  
+.name-input-wrap{position:relative;display:flex;align-items:center}.name-input-wrap input{width:100%;padding-right:42px}.name-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:0;border-radius:50%;background:#e5e7eb;color:#374151;font-size:24px;line-height:28px;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}.name-clear:hover{background:#d1d5db}.name-clear:active{transform:translateY(-50%) scale(.94)}body.dark-mode .name-clear{background:#4b5563;color:#f3f4f6}body.dark-mode .name-clear:hover{background:#6b7280}
+</style>
 </head>
 <body>
 <div id="root"></div>
@@ -376,8 +336,8 @@ function App() {
               {Object.keys(store.users).filter(n=>n && n !== "Robot").sort((a,b)=>a.localeCompare(b)).map(n=><option key={n} value={n} />)}
             </datalist>
             <div className="player-fields" style={{marginTop:12}}>
-              <div className="field"><label>Player 1 name</label><input list="saved-players" value={names[0]} onChange={e=>setNames([e.target.value,names[1]])} placeholder="Enter or select saved player" /></div>
-              {!robot && Number(playerCount)===2 && <div className="field"><label>Player 2 name</label><input list="saved-players" value={names[1]} onChange={e=>setNames([names[0],e.target.value])} placeholder="Enter or select saved player" /></div>}
+              <div className="field name-field"><label>Player 1 name</label><div className="name-input-wrap"><input list="saved-players" value={names[0]} onChange={e=>setNames([e.target.value,names[1]])} placeholder="Enter or select saved player" /><button type="button" className="name-clear" aria-label="Clear Player 1 name" onClick={()=>setNames(["",names[1]])}>×</button></div></div>
+              {!robot && Number(playerCount)===2 && <div className="field name-field"><label>Player 2 name</label><div className="name-input-wrap"><input list="saved-players" value={names[1]} onChange={e=>setNames([names[0],e.target.value])} placeholder="Enter or select saved player" /><button type="button" className="name-clear" aria-label="Clear Player 2 name" onClick={()=>setNames([names[0],""])}>×</button></div></div>}
             </div>
 
             {robot && <div className="robot-note">Robot model: its scoring is centered around the selected 3-dart average and its checkout chance scales from <b>10%</b> at 40 average to <b>50%</b> at 100 average.</div>}
