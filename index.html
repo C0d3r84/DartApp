@@ -20,7 +20,8 @@
     .brand { font-size:22px; font-weight:800; }
     .btn { border:0; border-radius:10px; padding:10px 14px; background:#1f2937; color:#fff; font-weight:700; }
     .btn.primary { background:#2563eb; }
-    .btn.green { background:#16a34a; }
+    .btn.green { background:#16a34a; color:#fff; }
+    .btn.confirm { background:#16a34a; color:#fff; }
     .btn.red { background:#dc2626; }
     .btn.light { background:#e5e7eb; color:#111827; }
     .btn:disabled { opacity:.45; cursor:not-allowed; }
@@ -110,6 +111,48 @@
     .theme-toggle { display:flex; align-items:center; gap:7px; white-space:nowrap; }
     .saved-count { color:#6b7280; }
     body.dark-mode .saved-count { color:#9ca3af; }
+
+    /* Tablet portrait layout (e.g. iPad 10/11, 768x1024 and similar) */
+    @media (min-width:761px) and (max-width:1100px) and (orientation:portrait) {
+      .app { padding:12px; }
+      .topbar, .setup, .board-card, .score-panel { max-width:900px; }
+      .topbar { margin-bottom:8px; }
+      .brand { font-size:20px; }
+      .setup { padding:14px; margin-bottom:10px; }
+      .setup-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+      .player-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .board-card { padding:12px; }
+      .match-head { margin-bottom:4px; }
+      .match-head h1 { font-size:22px; }
+      .turn-info { font-size:14px; }
+      /* Use viewport height so the complete scoring area fits on a portrait tablet. */
+      .dartboard-wrap { width:min(82vw,58vh,700px); }
+      .last-hit { margin:7px 0 0; font-size:20px; min-height:26px; }
+      .players { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:10px; }
+      .player-card { padding:10px; }
+      .player-name { font-size:16px; }
+      .player-score { font-size:34px; }
+      .player-meta { font-size:11px; }
+      .turn-history { margin-top:7px; padding-top:6px; }
+      .turn-line { padding:6px 8px; }
+      .score-panel { padding:12px; margin-top:10px; }
+      .score-header h2 { font-size:20px; }
+      .btn { min-height:42px; padding:9px 13px; }
+    }
+
+    /* Shorter portrait tablets: prioritize the board and keep controls compact. */
+    @media (min-width:761px) and (max-width:1100px) and (orientation:portrait) and (max-height:900px) {
+      .setup { padding:10px; }
+      .setup-grid { gap:7px; }
+      .field input, .field select { padding:8px 10px; }
+      .board-card { padding:8px; }
+      .dartboard-wrap { width:min(78vw,54vh,620px); }
+      .players { margin-top:7px; }
+      .player-card { padding:8px; }
+      .player-score { font-size:30px; }
+      .score-panel { padding:9px; margin-top:7px; }
+    }
+
     @media (max-width:760px) {
       .setup-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
       .player-fields { grid-template-columns:1fr; }
@@ -282,6 +325,27 @@ function App() {
     });
   };
 
+  const editTurn = (playerIndex, turnIndex, newScore, busted) => {
+    setGame(prev => {
+      if (!prev) return prev;
+      const players = prev.players.map((p,i) => i === playerIndex ? {...p, turns:[...(p.turns||[])]} : p);
+      const p = players[playerIndex];
+      const turn = p.turns[turnIndex];
+      if (!turn || turn.leg !== prev.legNumber) return prev;
+
+      const score = busted ? 0 : Math.max(0, Number(newScore) || 0);
+      p.turns[turnIndex] = {...turn, score, busted:!!busted, checkout:false};
+
+      // Recalculate this player's live score from the completed turns in the current leg.
+      const legTotal = p.turns
+        .filter(t => t.leg === prev.legNumber)
+        .reduce((sum,t) => sum + (t.busted ? 0 : Number(t.score)||0), 0);
+      p.score = Math.max(0, prev.type - legTotal);
+
+      return {...prev, players};
+    });
+  };
+
   return (
     <>
       <div className="app">
@@ -324,7 +388,7 @@ function App() {
           </div>
         )}
 
-        {game && <Match game={game} registerTurn={registerTurn} robot={robot} robotAvg={robotAvg} onCelebrate={celebrate} />}
+        {game && <Match game={game} registerTurn={registerTurn} editTurn={editTurn} robot={robot} robotAvg={robotAvg} onCelebrate={celebrate} />}
       </div>
 
       {celebration && <div className="celebration">
@@ -342,9 +406,12 @@ function App() {
   );
 }
 
-function Match({game,registerTurn,robot,robotAvg,onCelebrate}) {
+function Match({game,registerTurn,editTurn,robot,robotAvg,onCelebrate}) {
   const [lastHit,setLastHit]=useState("Tap the dartboard to score");
   const [turnDarts,setTurnDarts]=useState([]);
+  const [editingTurn,setEditingTurn]=useState(null);
+  const [editValue,setEditValue]=useState(0);
+  const [editBust,setEditBust]=useState(false);
   const imgRef=useRef(null);
   const robotRunning=useRef(false);
   const player=game.players[game.current];
@@ -507,11 +574,29 @@ function Match({game,registerTurn,robot,robotAvg,onCelebrate}) {
           <div className="turn-history">
             <div className="turn-history-title">This leg — turn scores</div>
             <div className="turn-list">
-              {recentTurns.map((t,idx)=><div className={"turn-line "+(t.busted?"bust":"")} key={idx}>
-                <span className="turn-no">Turn {idx+1}</span>
-                <span className="turn-darts">{t.busted ? "BUST" : (t.darts||[]).join(" + ")}</span>
-                <span className="turn-total">{t.busted ? 0 : t.score}</span>
-              </div>)}
+              {recentTurns.map((t,idx)=>{
+                const isEditing=editingTurn && editingTurn.playerIndex===i && editingTurn.turnIndex===idx;
+                return <div className={"turn-line "+(t.busted?"bust":"")} key={idx}>
+                  <span className="turn-no">Turn {idx+1}</span>
+                  {isEditing ? <>
+                    <span className="turn-darts" style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                      <input type="number" min="0" max={game.type} value={editBust?0:editValue} disabled={editBust} onChange={e=>setEditValue(e.target.value)} style={{width:75,padding:"5px 7px",border:"1px solid #9ca3af",borderRadius:7}} />
+                      <label style={{display:"flex",alignItems:"center",gap:4,fontWeight:700}}>
+                        <input type="checkbox" checked={editBust} onChange={e=>setEditBust(e.target.checked)} /> BUST
+                      </label>
+                      <button className="btn confirm" style={{padding:"5px 8px"}} onClick={()=>{ editTurn(i,idx,editValue,editBust); setEditingTurn(null); }}>Save</button>
+                      <button className="btn light" style={{padding:"5px 8px"}} onClick={()=>setEditingTurn(null)}>Cancel</button>
+                    </span>
+                    <span className="turn-total">{editBust?0:editValue}</span>
+                  </> : <>
+                    <span className="turn-darts">{t.busted ? "BUST" : (t.darts||[]).join(" + ")}</span>
+                    <span style={{display:"flex",alignItems:"center",gap:6}}>
+                      <span className="turn-total">{t.busted ? 0 : t.score}</span>
+                      <button className="btn light" style={{padding:"4px 7px",fontSize:11}} onClick={()=>{setEditingTurn({playerIndex:i,turnIndex:idx});setEditValue(t.score||0);setEditBust(!!t.busted);}} disabled={isRobotTurn}>Edit</button>
+                    </span>
+                  </>}
+                </div>;
+              })}
               {isCurrent && turnDarts.length>0 && <div className="turn-line turn-current">
                 <span className="turn-no">Current</span>
                 <span className="turn-darts">{turnDarts.map((d,i)=><button key={i} className="btn light" style={{padding:"4px 7px",marginRight:4}} onClick={()=>removeDart(i)} title="Remove this dart to correct the score">{d.score} ×</button>)}</span>
@@ -532,7 +617,7 @@ function Match({game,registerTurn,robot,robotAvg,onCelebrate}) {
             setTurnDarts([]);
             setLastHit("Current turn cleared — re-enter the darts");
           }} disabled={isRobotTurn || turnDarts.length===0}>Clear turn</button>
-          <button className="btn" onClick={confirmTurn} disabled={isRobotTurn || turnDarts.length===0}>Confirm turn</button>
+          <button className="btn confirm" onClick={confirmTurn} disabled={isRobotTurn || turnDarts.length===0}>Confirm turn</button>
         </div>
       </div>
       {turnDarts.length>0 && <div style={{marginTop:8,fontSize:13,opacity:.85}}>
